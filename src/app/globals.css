@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-burnt: #BF5700;
+  --color-burnt-light: #E87A2A;
+  --color-burnt-dark: #8C3F00;
+  --color-burnt-50: #FFF3E6;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-armadillo-bg: #0F1117;
+  --color-armadillo-card: #1A1D27;
+  --color-armadillo-border: #2A2D37;
+  --color-armadillo-text: #E8E6E3;
+  --color-armadillo-muted: #8B8D97;
+
+  --color-platform-tiktok: #00F2EA;
+  --color-platform-instagram: #E1306C;
+  --color-platform-youtube: #FF0000;
+  --color-platform-twitter: #1DA1F2;
+  --color-platform-linkedin: #0A66C2;
+
+  --color-success: #22C55E;
+  --color-danger: #EF4444;
+
+  --font-display: 'Bodoni Moda', serif;
+  --font-body: 'Lexend', sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-armadillo-bg);
+  color: var(--color-armadillo-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-armadillo-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-armadillo-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-armadillo-muted);
+}
+
+/* Mobile safe area */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Smooth transitions for onboarding */
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
