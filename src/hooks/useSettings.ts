@@ -1,22 +1,56 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { UserSettings } from '@/lib/types';
-import { getSettings, saveSettings as persistSettings } from '@/lib/settings';
+import { getUserProfile, saveUserProfile, type UserProfile } from '@/lib/store';
+
+// Legacy UserSettings interface for backwards compatibility with PlatformPage
+export interface UserSettings {
+  apifyApiKey: string;
+  usernames: Partial<Record<string, string>>;
+}
 
 export function useSettings() {
-  const [settings, setSettings] = useState<UserSettings>({ apifyApiKey: '', usernames: {} });
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setSettings(getSettings());
+    setProfile(getUserProfile());
     setLoaded(true);
   }, []);
 
-  const updateSettings = (newSettings: UserSettings) => {
-    setSettings(newSettings);
-    persistSettings(newSettings);
+  // Return a settings-compatible object for existing components
+  const settings: UserSettings = {
+    apifyApiKey: profile?.apifyApiKey || '',
+    usernames: profile?.platformUsernames || {},
   };
 
-  return { settings, updateSettings, loaded };
+  const updateSettings = (newSettings: UserSettings) => {
+    if (!profile) return;
+    const updated = {
+      ...profile,
+      apifyApiKey: newSettings.apifyApiKey,
+      platformUsernames: newSettings.usernames as UserProfile['platformUsernames'],
+    };
+    setProfile(updated);
+    saveUserProfile(updated);
+  };
+
+  return { settings, updateSettings, loaded, profile, setProfile };
+}
+
+export function useProfile() {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    setProfile(getUserProfile());
+    setLoaded(true);
+  }, []);
+
+  const updateProfile = (updated: UserProfile) => {
+    setProfile(updated);
+    saveUserProfile(updated);
+  };
+
+  return { profile, updateProfile, loaded };
 }
