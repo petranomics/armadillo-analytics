@@ -1,9 +1,11 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings } from 'lucide-react';
-import { PLATFORM_NAMES, PLATFORMS } from '@/lib/constants';
+import { LayoutDashboard, Settings, BarChart3, Sparkles, Share2 } from 'lucide-react';
+import { PLATFORM_NAMES } from '@/lib/constants';
+import { getUserProfile, type UserProfile } from '@/lib/store';
 import type { Platform } from '@/lib/types';
 
 const platformIcons: Record<Platform, string> = {
@@ -16,6 +18,18 @@ const platformIcons: Record<Platform, string> = {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const p = getUserProfile();
+    if (p.onboardingComplete) {
+      setProfile(p);
+    }
+  }, []);
+
+  // Show only selected platforms, or all if not onboarded
+  const platforms = profile?.selectedPlatforms || (['tiktok', 'instagram', 'youtube', 'twitter', 'linkedin'] as Platform[]);
+  const planLabel = profile?.plan === 'pro' ? 'Pro' : profile?.plan === 'lite' ? 'Lite' : 'Free';
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-60 bg-armadillo-card border-r border-armadillo-border flex flex-col z-50">
@@ -57,11 +71,24 @@ export default function Sidebar() {
           <span>Overview</span>
         </Link>
 
+        {/* Insights */}
+        <Link
+          href="/insights"
+          className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
+            pathname === '/insights'
+              ? 'text-burnt bg-burnt/10 border-r-2 border-burnt'
+              : 'text-armadillo-muted hover:text-armadillo-text hover:bg-armadillo-border/30'
+          }`}
+        >
+          <BarChart3 size={16} />
+          <span>Insights</span>
+        </Link>
+
         {/* Platforms */}
         <div className="mt-6 mb-2 px-5">
           <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-armadillo-muted">Platforms</span>
         </div>
-        {PLATFORMS.map((platform) => (
+        {platforms.map((platform) => (
           <Link
             key={platform}
             href={`/${platform}`}
@@ -81,6 +108,33 @@ export default function Sidebar() {
           </Link>
         ))}
 
+        {/* Tools */}
+        <div className="mt-6 mb-2 px-5">
+          <span className="text-[10px] font-medium tracking-[0.2em] uppercase text-armadillo-muted">Tools</span>
+        </div>
+        <Link
+          href="/customize"
+          className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
+            pathname === '/customize'
+              ? 'text-burnt bg-burnt/10 border-r-2 border-burnt'
+              : 'text-armadillo-muted hover:text-armadillo-text hover:bg-armadillo-border/30'
+          }`}
+        >
+          <Sparkles size={16} />
+          <span>Customize</span>
+        </Link>
+        <Link
+          href="/export"
+          className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
+            pathname === '/export'
+              ? 'text-burnt bg-burnt/10 border-r-2 border-burnt'
+              : 'text-armadillo-muted hover:text-armadillo-text hover:bg-armadillo-border/30'
+          }`}
+        >
+          <Share2 size={16} />
+          <span>Export</span>
+        </Link>
+
         {/* Settings */}
         <div className="mt-6 pt-4 border-t border-armadillo-border">
           <Link
@@ -99,9 +153,18 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-armadillo-border">
-        <div className="flex items-center gap-2 px-1">
-          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-          <span className="text-[11px] text-armadillo-muted">Demo Mode</span>
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-[11px] text-armadillo-muted">
+              {profile ? `${planLabel} Plan` : 'Demo Mode'}
+            </span>
+          </div>
+          {profile && (
+            <span className="text-[9px] bg-burnt/20 text-burnt px-2 py-0.5 rounded-full font-medium uppercase tracking-wider">
+              {planLabel}
+            </span>
+          )}
         </div>
       </div>
     </aside>

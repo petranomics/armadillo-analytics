@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Bodoni_Moda, Lexend } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
+import LayoutShell from "@/components/layout/LayoutShell";
 
 const bodoniModa = Bodoni_Moda({
   variable: "--font-display",
@@ -28,10 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${bodoniModa.variable} ${lexend.variable} antialiased`}>
-        <Sidebar />
-        <main className="ml-60 min-h-screen p-6">
-          {children}
-        </main>
+        <LayoutShell>{children}</LayoutShell>
       </body>
     </html>
   );
