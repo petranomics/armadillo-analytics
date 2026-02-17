@@ -7,6 +7,9 @@ import { getUserProfile, saveUserProfile, type UserProfile } from '@/lib/store';
 export interface UserSettings {
   apifyApiKey: string;
   usernames: Partial<Record<string, string>>;
+  trackedHashtags: string[];
+  trackedSubreddits: string[];
+  tiktokNiche: string;
 }
 
 export function useSettings() {
@@ -22,6 +25,9 @@ export function useSettings() {
   const settings: UserSettings = {
     apifyApiKey: profile?.apifyApiKey || '',
     usernames: profile?.platformUsernames || {},
+    trackedHashtags: profile?.trackedHashtags || [],
+    trackedSubreddits: profile?.trackedSubreddits || [],
+    tiktokNiche: profile?.tiktokNiche || '',
   };
 
   const updateSettings = (newSettings: UserSettings) => {
@@ -30,6 +36,9 @@ export function useSettings() {
       ...profile,
       apifyApiKey: newSettings.apifyApiKey,
       platformUsernames: newSettings.usernames as UserProfile['platformUsernames'],
+      trackedHashtags: newSettings.trackedHashtags,
+      trackedSubreddits: newSettings.trackedSubreddits,
+      tiktokNiche: newSettings.tiktokNiche,
     };
     setProfile(updated);
     saveUserProfile(updated);

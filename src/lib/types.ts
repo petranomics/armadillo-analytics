@@ -55,4 +55,58 @@ export interface DashboardOverview {
 export interface UserSettings {
   apifyApiKey: string;
   usernames: Partial<Record<Platform, string>>;
+  trackedHashtags: string[];
+  trackedSubreddits: string[];
+  tiktokNiche: string;
+}
+
+// ============ TREND DATA TYPES ============
+
+export type TrendSource = 'instagramHashtags' | 'instagramHashtagPosts' | 'redditTrends' | 'tiktokTrends';
+
+export interface HashtagStats {
+  hashtag: string;
+  postCount: number;
+  relatedHashtags: string[];
+  avgEngagement?: number;
+  trend?: 'rising' | 'stable' | 'declining';
+}
+
+export interface HashtagPost {
+  id: string;
+  caption: string;
+  likes: number;
+  comments: number;
+  hashtag: string;
+  url: string;
+  publishedAt: string;
+  thumbnailUrl?: string;
+}
+
+export interface RedditTrend {
+  title: string;
+  subreddit: string;
+  upvotes: number;
+  comments: number;
+  url: string;
+  publishedAt: string;
+  flair?: string;
+}
+
+export interface TikTokTrend {
+  productName: string;
+  category: string;
+  trendScore?: number;
+  description?: string;
+  relatedVideos?: number;
+  url?: string;
+}
+
+export interface TrendData {
+  source: TrendSource;
+  fetchedAt: string;
+  hashtagStats?: HashtagStats[];
+  hashtagPosts?: HashtagPost[];
+  redditTrends?: RedditTrend[];
+  tiktokTrends?: TikTokTrend[];
 }

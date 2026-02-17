@@ -1,12 +1,18 @@
 import type { Platform } from './types';
 
 export const APIFY_ACTORS: Record<string, string> = {
-  tiktok: 'clockworks/tiktok-scraper',
+  // Platform scrapers
+  tiktok: 'clockworks/free-tiktok-scraper',
   instagram: 'apify/instagram-scraper',
   instagramComments: 'apify/instagram-comment-scraper',
   youtube: 'streamers/youtube-scraper',
   twitter: 'apidojo/twitter-scraper-lite',
-  linkedin: 'curious_coder/linkedin-post-reactions-scraper',
+  linkedin: 'curious_coder/linkedin-post-search-scraper',
+  // Trend scrapers
+  instagramHashtagStats: 'scrapier/instagram-related-hashtag-stats-scraper',
+  instagramHashtagPosts: 'muhammad_noman_riaz/instagram-hashtag-super-scraper',
+  redditTrends: 'scraper-engine/reddit-trends-scraper',
+  tiktokTrends: 'frayess_mosbehi/tiktok-trend-hunter',
 };
 
 export const PLATFORM_COLORS: Record<Platform, string> = {

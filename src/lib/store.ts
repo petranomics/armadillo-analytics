@@ -11,6 +11,9 @@ export interface UserProfile {
   platformUsernames: Partial<Record<Platform, string>>;
   competitorAccounts: string[];
   apifyApiKey: string;
+  trackedHashtags: string[];
+  trackedSubreddits: string[];
+  tiktokNiche: string;
 }
 
 // Keep same localStorage key for backwards compatibility with mobile
@@ -26,6 +29,9 @@ const DEFAULT_PROFILE: UserProfile = {
   platformUsernames: {},
   competitorAccounts: [],
   apifyApiKey: '',
+  trackedHashtags: [],
+  trackedSubreddits: [],
+  tiktokNiche: '',
 };
 
 export function getUserProfile(): UserProfile {

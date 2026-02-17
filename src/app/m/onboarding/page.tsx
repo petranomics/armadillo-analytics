@@ -35,6 +35,9 @@ export default function OnboardingPage() {
       platformUsernames: state.platformUsernames,
       competitorAccounts: state.competitorAccounts,
       apifyApiKey: '',
+      trackedHashtags: [],
+      trackedSubreddits: [],
+      tiktokNiche: '',
     });
 
     router.push('/m/dashboard');

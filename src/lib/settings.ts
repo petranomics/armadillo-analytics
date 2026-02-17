@@ -5,6 +5,9 @@ const SETTINGS_KEY = 'armadillo-settings';
 const DEFAULT_SETTINGS: UserSettings = {
   apifyApiKey: '',
   usernames: {},
+  trackedHashtags: [],
+  trackedSubreddits: [],
+  tiktokNiche: '',
 };
 
 export function getSettings(): UserSettings {
@@ -12,7 +15,7 @@ export function getSettings(): UserSettings {
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (!stored) return DEFAULT_SETTINGS;
-    return JSON.parse(stored);
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
   } catch {
     return DEFAULT_SETTINGS;
   }

@@ -18,10 +18,14 @@ export async function POST(request: NextRequest) {
     }
 
     // API key lives server-side only — never sent from the client
-    const apiKey = process.env.APIFY_API_KEY;
+    const apiKey =
+      process.env.APIFY_API_KEY ||
+      process.env.APIFY_API_KEY_IG ||
+      process.env.APIFY_API_KEY_TIKTOK ||
+      process.env.APIFY_API_KEY_LINKEDIN;
     if (!apiKey) {
       return NextResponse.json(
-        { error: 'APIFY_API_KEY is not configured on the server. Add it to .env.local' },
+        { error: 'No Apify API key configured. Add APIFY_API_KEY to .env.local' },
         { status: 500 }
       );
     }

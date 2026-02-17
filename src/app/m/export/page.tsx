@@ -3,16 +3,60 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
-import { USER_TYPES } from '@/lib/user-types';
-import { PLATFORM_NAMES } from '@/lib/constants';
+import { mockHashtagStats, mockHashtagPosts, mockRedditTrends, mockTikTokTrends } from '@/lib/trend-data';
 import BottomNav from '@/components/mobile/BottomNav';
-import { FileText, Link2, Mail, Download, Image, QrCode, Copy, Check, Share2, Presentation, Lock } from 'lucide-react';
+import { FileText, Link2, Mail, Download, Image, QrCode, Copy, Check, Share2, Presentation, Lock, TrendingUp } from 'lucide-react';
+
+function generateTrendCSV(): string {
+  const lines: string[] = [];
+
+  // Hashtag Stats
+  lines.push('--- HASHTAG TRENDS ---');
+  lines.push('Hashtag,Post Count,Avg Engagement %,Trend,Related Hashtags');
+  for (const h of mockHashtagStats) {
+    lines.push(`#${h.hashtag},${h.postCount},${h.avgEngagement || ''},${h.trend || ''},"${h.relatedHashtags.join(', ')}"`);
+  }
+
+  lines.push('');
+  lines.push('--- TRENDING HASHTAG POSTS ---');
+  lines.push('Hashtag,Caption,Likes,Comments,Published');
+  for (const p of mockHashtagPosts) {
+    lines.push(`#${p.hashtag},"${p.caption.replace(/"/g, '""')}",${p.likes},${p.comments},${p.publishedAt}`);
+  }
+
+  lines.push('');
+  lines.push('--- REDDIT TRENDS ---');
+  lines.push('Title,Subreddit,Upvotes,Comments,Flair,Published');
+  for (const r of mockRedditTrends) {
+    lines.push(`"${r.title.replace(/"/g, '""')}",${r.subreddit},${r.upvotes},${r.comments},${r.flair || ''},${r.publishedAt}`);
+  }
+
+  lines.push('');
+  lines.push('--- TIKTOK TRENDS ---');
+  lines.push('Product,Category,Trend Score,Related Videos,Description');
+  for (const t of mockTikTokTrends) {
+    lines.push(`"${t.productName}",${t.category},${t.trendScore || ''},${t.relatedVideos || ''},"${(t.description || '').replace(/"/g, '""')}"`);
+  }
+
+  return lines.join('\n');
+}
+
+function downloadCSV(filename: string, content: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function ExportPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<MobileUserProfile | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [csvDownloaded, setCsvDownloaded] = useState(false);
 
   useEffect(() => {
     const p = getMobileProfile();
@@ -23,7 +67,6 @@ export default function ExportPage() {
 
   if (!loaded || !profile) return null;
 
-  const userConfig = USER_TYPES.find(u => u.id === profile.userType);
   const isInfluencer = profile.userType === 'influencer';
   const isPro = profile.plan === 'pro';
   const isFree = profile.plan === 'free';
@@ -31,6 +74,13 @@ export default function ExportPage() {
   const handleCopyLink = () => {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCSVExport = () => {
+    const csv = generateTrendCSV();
+    downloadCSV(`armadillo-trends-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    setCsvDownloaded(true);
+    setTimeout(() => setCsvDownloaded(false), 3000);
   };
 
   return (
@@ -72,15 +122,16 @@ export default function ExportPage() {
         <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">Export Formats</h3>
         <div className="space-y-2">
           {[
-            { icon: FileText, label: 'PDF Media Kit', desc: 'Professional branded PDF with your top metrics, audience data, and best content', available: !isFree },
-            { icon: Presentation, label: 'Pitch Deck', desc: 'Slide-ready presentation for brand meetings and sponsorship pitches', available: isPro },
-            { icon: Image, label: 'Social Cards', desc: 'Instagram-ready graphics showing your analytics for Stories and posts', available: !isFree },
-            { icon: Download, label: 'CSV Data Export', desc: 'Raw data download for spreadsheets and custom analysis', available: isPro },
+            { icon: FileText, label: 'PDF Media Kit', desc: 'Professional branded PDF with metrics, audience data, and trend insights', available: !isFree, action: undefined },
+            { icon: Presentation, label: 'Pitch Deck', desc: 'Slide-ready presentation for brand meetings and sponsorship pitches', available: isPro, action: undefined },
+            { icon: Image, label: 'Social Cards', desc: 'Instagram-ready graphics showing your analytics for Stories and posts', available: !isFree, action: undefined },
+            { icon: Download, label: 'CSV Data Export', desc: 'Raw data download including trend data for spreadsheets and custom analysis', available: isPro, action: isPro ? handleCSVExport : undefined },
           ].map((option) => {
             const Icon = option.icon;
             return (
               <button
                 key={option.label}
+                onClick={option.action}
                 className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all ${
                   option.available
                     ? 'bg-armadillo-card border-armadillo-border hover:border-burnt/40'
@@ -94,6 +145,11 @@ export default function ExportPage() {
                   <div className="text-sm font-medium text-armadillo-text flex items-center gap-1.5">
                     {option.label}
                     {!option.available && <Lock size={10} className="text-armadillo-muted" />}
+                    {option.label === 'CSV Data Export' && csvDownloaded && (
+                      <span className="text-[9px] bg-success/20 text-success px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                        <Check size={8} /> Downloaded
+                      </span>
+                    )}
                   </div>
                   <div className="text-[10px] text-armadillo-muted mt-0.5">{option.desc}</div>
                 </div>
@@ -102,6 +158,36 @@ export default function ExportPage() {
           })}
         </div>
       </div>
+
+      {/* Trend Data in Export */}
+      {!isFree && (
+        <div className="px-5 mb-5">
+          <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">Trend Data Included</h3>
+          <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp size={14} className="text-burnt" />
+              <span className="text-xs font-medium text-armadillo-text">Exports now include trend data</span>
+            </div>
+            <div className="space-y-1.5">
+              {[
+                { label: 'Instagram hashtag stats & trending posts', available: true },
+                { label: 'Reddit trending topics', available: isPro },
+                { label: 'TikTok product trends & scores', available: isPro },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-2 text-[11px]">
+                  {item.available ? (
+                    <Check size={10} className="text-success shrink-0" />
+                  ) : (
+                    <Lock size={10} className="text-armadillo-muted shrink-0" />
+                  )}
+                  <span className={item.available ? 'text-armadillo-text' : 'text-armadillo-muted'}>{item.label}</span>
+                  {!item.available && <span className="text-[8px] bg-armadillo-border text-armadillo-muted px-1.5 py-0.5 rounded-full uppercase font-bold">Pro</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Share */}
       <div className="px-5 mb-5">
