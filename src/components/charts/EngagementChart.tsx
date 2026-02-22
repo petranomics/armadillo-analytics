@@ -50,11 +50,11 @@ export default function EngagementChart({ platform, posts }: EngagementChartProp
   return (
         <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-medium text-armadillo-text">Engagement Over Time</h3>h3>
+                      <h3 className="text-sm font-medium text-armadillo-text">Engagement Over Time</h3>
                       <span className="text-[11px] text-armadillo-muted bg-armadillo-bg px-3 py-1 rounded border border-armadillo-border">
                         {chartData.isLive ? 'Live Data' : 'Last 30 days'}
-                      </span>span>
-              </div>div>
+                      </span>
+              </div>
         
               <ResponsiveContainer width="100%" height={220}>
                       <AreaChart data={chartData.data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -95,8 +95,8 @@ export default function EngagementChart({ platform, posts }: EngagementChartProp
                                               strokeWidth={2}
                                               fill={`url(#gradient-${dataKey})`}
                                             />
-                      </AreaChart>AreaChart>
-              </ResponsiveContainer>ResponsiveContainer>
-        </div>div>
+                      </AreaChart>
+              </ResponsiveContainer>
+        </div>
       );
-}</div>
+}
