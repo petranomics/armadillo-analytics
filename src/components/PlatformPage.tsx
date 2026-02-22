@@ -289,4 +289,4 @@ function transformMetrics(platform: Platform, item: Record<string, unknown>) {
       default:
               return { likes: 0, comments: 0 };
     }
-}</div>
+}
