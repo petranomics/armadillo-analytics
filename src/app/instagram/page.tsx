@@ -126,4 +126,4 @@ export default function InstagramPage() {
                 </div>
           </div>
         );
-}</div>
+}
