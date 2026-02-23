@@ -204,11 +204,11 @@ export default function InsightsPage() {
   return (
         <div className="max-w-7xl mx-auto">
               <div className="mb-8">
-                      <h1 className="font-display text-3xl text-armadillo-text">Insights</h1>h1>
+                      <h1 className="font-display text-3xl text-armadillo-text">Insights</h1>
                       <p className="text-sm text-armadillo-muted mt-1">
                         {profile.selectedPlatforms.map(p => PLATFORM_NAMES[p]).join(', ')} &middot; Last 30 days
-                      </p>p>
-              </div>div>
+                      </p>
+              </div>
         
               <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-1 inline-flex mb-8">
                 {tabs.map((tab) => (
@@ -226,9 +226,9 @@ export default function InsightsPage() {
                       {tab.key === 'ai' && <Sparkles size={12} />}
                       {tab.label}
                       {tab.locked && <Lock size={10} />}
-                    </button>button>
+                    </button>
                   ))}
-              </div>div>
+              </div>
         
           {/* AI Analysis Tab */}
           {activeTab === 'ai' && isPro && (
@@ -237,15 +237,15 @@ export default function InsightsPage() {
                                         <div className="flex items-center gap-3 mb-2">
                                                       <div className="w-10 h-10 rounded-xl bg-burnt/20 flex items-center justify-center">
                                                                       <Sparkles size={20} className="text-burnt" />
-                                                      </div>div>
+                                                      </div>
                                                       <div>
-                                                                      <h2 className="font-display text-xl text-armadillo-text font-semibold">AI Analytics Writeup</h2>h2>
+                                                                      <h2 className="font-display text-xl text-armadillo-text font-semibold">AI Analytics Writeup</h2>
                                                                       <p className="text-xs text-armadillo-muted">
                                                                                         Generated {aiAnalysis.generatedAt} based on your last 30 days of data
-                                                                      </p>p>
-                                                      </div>div>
-                                        </div>div>
-                            </div>div>
+                                                                      </p>
+                                                      </div>
+                                        </div>
+                            </div>
                   
                     {aiAnalysis.sections.map((section, i) => (
                                 <div key={i} className="bg-armadillo-card border border-armadillo-border rounded-xl overflow-hidden">
@@ -253,55 +253,55 @@ export default function InsightsPage() {
                                                                 onClick={() => setExpandedSection(expandedSection === i ? null : i)}
                                                                 className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-armadillo-border/20 transition-colors"
                                                               >
-                                                              <span className="text-lg shrink-0">{section.icon}</span>span>
-                                                              <span className="flex-1 text-sm font-medium text-armadillo-text">{section.title}</span>span>
+                                                              <span className="text-lg shrink-0">{section.icon}</span>
+                                                              <span className="flex-1 text-sm font-medium text-armadillo-text">{section.title}</span>
                                                 {expandedSection === i ? (
                                                                                   <ChevronUp size={16} className="text-armadillo-muted shrink-0" />
                                                                                 ) : (
                                                                                   <ChevronDown size={16} className="text-armadillo-muted shrink-0" />
                                                                                 )}
-                                              </button>button>
+                                              </button>
                                   {expandedSection === i && (
                                                   <div className="px-5 pb-5 border-t border-armadillo-border pt-4">
                                                     {section.body && (
-                                                                        <p className="text-sm text-armadillo-muted leading-relaxed">{section.body}</p>p>
+                                                                        <p className="text-sm text-armadillo-muted leading-relaxed">{section.body}</p>
                                                                     )}
                                                     {section.bullets && (
                                                                         <ul className="space-y-2 mt-1">
                                                                           {section.bullets.map((bullet, j) => (
                                                                                                   <li key={j} className="flex items-start gap-2 text-sm text-armadillo-muted leading-relaxed">
-                                                                                                                            <span className="text-burnt mt-0.5 shrink-0">&bull;</span>span>
+                                                                                                                            <span className="text-burnt mt-0.5 shrink-0">&bull;</span>
                                                                                                     {bullet}
-                                                                                                    </li>li>
+                                                                                                    </li>
                                                                                                 ))}
-                                                                        </ul>ul>
+                                                                        </ul>
                                                                     )}
-                                                  </div>div>
+                                                  </div>
                                               )}
-                                </div>div>
+                                </div>
                               ))}
                             <button
                                           onClick={() => setExpandedSection(expandedSection !== null ? null : 0)}
                                           className="w-full text-center text-xs text-burnt font-medium py-2"
                                         >
                               {expandedSection !== null ? 'Collapse all' : 'Expand all sections'}
-                            </button>button>
-                  </div>div>
+                            </button>
+                  </div>
               )}
         
           {activeTab === 'ai' && !isPro && (
                   <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
                             <div className="w-16 h-16 rounded-full bg-burnt/15 flex items-center justify-center mx-auto mb-4">
                                         <Lock size={28} className="text-burnt" />
-                            </div>div>
-                            <h2 className="font-display text-2xl text-armadillo-text mb-2">AI Analysis is a Pro Feature</h2>h2>
+                            </div>
+                            <h2 className="font-display text-2xl text-armadillo-text mb-2">AI Analysis is a Pro Feature</h2>
                             <p className="text-armadillo-muted mb-6 max-w-md mx-auto">
                                         Unlock AI-powered analytics writeups, content recommendations, and growth strategies tailored to your account.
-                            </p>p>
+                            </p>
                             <button onClick={() => router.push('/settings')} className="bg-burnt hover:bg-burnt-light text-white px-6 py-3 rounded-xl font-medium transition-colors">
                                         Upgrade to Pro
-                            </button>button>
-                  </div>div>
+                            </button>
+                  </div>
               )}
         
           {/* Posts Tab - now uses live data */}
@@ -312,53 +312,53 @@ export default function InsightsPage() {
                               {postsLoading && (
                                   <span className="flex items-center gap-1.5 text-xs text-burnt">
                                                   <Loader2 size={12} className="animate-spin" /> Loading live posts...
-                                  </span>span>
+                                  </span>
                                         )}
                               {!postsLoading && livePosts && (
                                   <span className="flex items-center gap-1.5 text-xs text-success">
                                                   <div className="w-1.5 h-1.5 rounded-full bg-success" /> Live data
-                                  </span>span>
+                                  </span>
                                         )}
-                            </div>div>
+                            </div>
                             <div className="grid grid-cols-3 gap-4 mb-8">
                                         <div className="bg-armadillo-card border border-armadillo-border rounded-xl px-5 py-4">
-                                                      <p className="text-armadillo-muted text-xs uppercase tracking-wider mb-1">Posts</p>p>
-                                                      <p className="text-armadillo-text text-2xl font-display">{posts.length}</p>p>
-                                        </div>div>
+                                                      <p className="text-armadillo-muted text-xs uppercase tracking-wider mb-1">Posts</p>
+                                                      <p className="text-armadillo-text text-2xl font-display">{posts.length}</p>
+                                        </div>
                                         <div className="bg-armadillo-card border border-armadillo-border rounded-xl px-5 py-4">
-                                                      <p className="text-armadillo-muted text-xs uppercase tracking-wider mb-1">Total Likes</p>p>
-                                                      <p className="text-armadillo-text text-2xl font-display">{formatNumber(posts.reduce((s, p) => s + p.likes, 0))}</p>p>
-                                        </div>div>
+                                                      <p className="text-armadillo-muted text-xs uppercase tracking-wider mb-1">Total Likes</p>
+                                                      <p className="text-armadillo-text text-2xl font-display">{formatNumber(posts.reduce((s, p) => s + p.likes, 0))}</p>
+                                        </div>
                                         <div className="bg-armadillo-card border border-armadillo-border rounded-xl px-5 py-4">
-                                                      <p className="text-armadillo-muted text-xs uppercase tracking-wider mb-1">Avg Engagement</p>p>
-                                                      <p className="text-burnt text-2xl font-display">{(posts.reduce((s, p) => s + p.engagement, 0) / posts.length).toFixed(1)}%</p>p>
-                                        </div>div>
-                            </div>div>
+                                                      <p className="text-armadillo-muted text-xs uppercase tracking-wider mb-1">Avg Engagement</p>
+                                                      <p className="text-burnt text-2xl font-display">{(posts.reduce((s, p) => s + p.engagement, 0) / posts.length).toFixed(1)}%</p>
+                                        </div>
+                            </div>
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                               {posts.map((post, i) => (
                                   <div key={post.id} className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
                                                   <div className="flex items-start justify-between mb-3">
                                                                     <div className="flex items-center gap-2">
-                                                                                        <span className="text-burnt font-bold text-lg">#{i + 1}</span>span>
-                                                                                        <span className="text-xs text-armadillo-muted">{post.daysAgo === 1 ? '1 day ago' : `${post.daysAgo} days ago`}</span>span>
-                                                                    </div>div>
+                                                                                        <span className="text-burnt font-bold text-lg">#{i + 1}</span>
+                                                                                        <span className="text-xs text-armadillo-muted">{post.daysAgo === 1 ? '1 day ago' : `${post.daysAgo} days ago`}</span>
+                                                                    </div>
                                                                     <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
                                                         post.engagement > 13 ? 'bg-success/15 text-success' : post.engagement > 10 ? 'bg-burnt/15 text-burnt' : 'bg-armadillo-muted/15 text-armadillo-muted'
                                   }`}>
                                                                       {post.engagement}%
-                                                                    </span>span>
-                                                  </div>div>
-                                                  <p className="text-sm text-armadillo-text font-medium mb-4">{post.caption}</p>p>
+                                                                    </span>
+                                                  </div>
+                                                  <p className="text-sm text-armadillo-text font-medium mb-4">{post.caption}</p>
                                                   <div className="flex items-center gap-4 text-armadillo-muted text-xs">
-                                                                    <span className="flex items-center gap-1.5"><Eye size={14} />{formatNumber(post.views)}</span>span>
-                                                                    <span className="flex items-center gap-1.5"><Heart size={14} />{formatNumber(post.likes)}</span>span>
-                                                                    <span className="flex items-center gap-1.5"><MessageCircle size={14} />{formatNumber(post.comments)}</span>span>
-                                                                    <span className="flex items-center gap-1.5"><Share2 size={14} />{formatNumber(post.shares)}</span>span>
-                                                  </div>div>
-                                  </div>div>
+                                                                    <span className="flex items-center gap-1.5"><Eye size={14} />{formatNumber(post.views)}</span>
+                                                                    <span className="flex items-center gap-1.5"><Heart size={14} />{formatNumber(post.likes)}</span>
+                                                                    <span className="flex items-center gap-1.5"><MessageCircle size={14} />{formatNumber(post.comments)}</span>
+                                                                    <span className="flex items-center gap-1.5"><Share2 size={14} />{formatNumber(post.shares)}</span>
+                                                  </div>
+                                  </div>
                                 ))}
-                            </div>div>
-                  </div>div>
+                            </div>
+                  </div>
               )}
         
           {/* Trends Tab - now fetches live data */}
@@ -367,137 +367,137 @@ export default function InsightsPage() {
                             <div className="flex items-center justify-between">
                                         <div />
                                         <div className="flex items-center gap-3">
-                                          {trendsError && <span className="text-xs text-danger">{trendsError}</span>span>}
+                                          {trendsError && <span className="text-xs text-danger">{trendsError}</span>}
                                           {trendsLoading ? (
                                     <span className="flex items-center gap-1.5 text-xs text-burnt">
                                                       <Loader2 size={12} className="animate-spin" /> Fetching live trends...
-                                    </span>span>
+                                    </span>
                                   ) : (
                                     <button onClick={fetchTrends} className="flex items-center gap-1.5 text-xs text-burnt font-medium">
                                                       <RefreshCw size={12} /> Refresh trends
-                                    </button>button>
+                                    </button>
                                                       )}
-                                        </div>div>
-                            </div>div>
+                                        </div>
+                            </div>
                   
                     {/* Hashtag Stats */}
                     {(hashtagStats || mockHashtagStats).length > 0 && (
                                 <div>
-                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Trending Hashtags</h3>h3>
+                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Trending Hashtags</h3>
                                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                 {(hashtagStats || mockHashtagStats).map(tag => (
                                                     <div key={tag.hashtag} className="bg-armadillo-card border border-armadillo-border rounded-xl p-4">
                                                                         <div className="flex items-center justify-between mb-1.5">
-                                                                                              <span className="text-sm font-medium text-armadillo-text">#{tag.hashtag}</span>span>
+                                                                                              <span className="text-sm font-medium text-armadillo-text">#{tag.hashtag}</span>
                                                                           {tag.trend === 'rising' && (
                                                                               <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded-full flex items-center gap-0.5">
                                                                                                         <TrendingUp size={10} /> Rising
-                                                                                </span>span>
+                                                                                </span>
                                                                                               )}
                                                                           {tag.trend === 'declining' && (
                                                                               <span className="text-[10px] bg-danger/20 text-danger px-2 py-0.5 rounded-full flex items-center gap-0.5">
                                                                                                         <TrendingDown size={10} /> Declining
-                                                                                </span>span>
+                                                                                </span>
                                                                                               )}
                                                                           {tag.trend === 'stable' && (
-                                                                              <span className="text-[10px] bg-armadillo-border text-armadillo-muted px-2 py-0.5 rounded-full">Stable</span>span>
+                                                                              <span className="text-[10px] bg-armadillo-border text-armadillo-muted px-2 py-0.5 rounded-full">Stable</span>
                                                                                               )}
-                                                                        </div>div>
+                                                                        </div>
                                                                         <div className="flex items-center gap-3 text-xs text-armadillo-muted mb-2">
-                                                                                              <span>{formatNumber(tag.postCount)} posts</span>span>
-                                                                          {tag.avgEngagement && <span>{tag.avgEngagement}% avg eng.</span>span>}
-                                                                        </div>div>
+                                                                                              <span>{formatNumber(tag.postCount)} posts</span>
+                                                                          {tag.avgEngagement && <span>{tag.avgEngagement}% avg eng.</span>}
+                                                                        </div>
                                                       {tag.relatedHashtags.length > 0 && (
                                                                             <div className="flex flex-wrap gap-1">
                                                                               {tag.relatedHashtags.slice(0, 5).map(r => (
-                                                                                                        <span key={r} className="text-[10px] bg-armadillo-bg text-armadillo-muted px-2 py-0.5 rounded">#{r}</span>span>
+                                                                                                        <span key={r} className="text-[10px] bg-armadillo-bg text-armadillo-muted px-2 py-0.5 rounded">#{r}</span>
                                                                                                       ))}
-                                                                            </div>div>
+                                                                            </div>
                                                                         )}
-                                                    </div>div>
+                                                    </div>
                                                   ))}
-                                              </div>div>
-                                </div>div>
+                                              </div>
+                                </div>
                             )}
                   
                     {/* Trending Posts */}
                     {(hashtagPosts || mockHashtagPosts).length > 0 && (
                                 <div>
-                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Trending Posts</h3>h3>
+                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Trending Posts</h3>
                                               <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
                                                               <div className="space-y-3">
                                                                 {(hashtagPosts || mockHashtagPosts).slice(0, 6).map(post => (
                                                       <div key={post.id} className="bg-armadillo-bg rounded-lg p-3.5">
                                                                             <div className="flex items-center justify-between mb-1.5">
-                                                                                                    <span className="text-[10px] bg-burnt/15 text-burnt px-2 py-0.5 rounded">#{post.hashtag}</span>span>
-                                                                                                    <span className="text-[10px] text-armadillo-muted">{timeAgo(post.publishedAt)}</span>span>
-                                                                            </div>div>
-                                                                            <p className="text-xs text-armadillo-text leading-relaxed mb-2 line-clamp-2">{post.caption}</p>p>
+                                                                                                    <span className="text-[10px] bg-burnt/15 text-burnt px-2 py-0.5 rounded">#{post.hashtag}</span>
+                                                                                                    <span className="text-[10px] text-armadillo-muted">{timeAgo(post.publishedAt)}</span>
+                                                                            </div>
+                                                                            <p className="text-xs text-armadillo-text leading-relaxed mb-2 line-clamp-2">{post.caption}</p>
                                                                             <div className="flex items-center gap-4 text-armadillo-muted">
-                                                                                                    <span className="flex items-center gap-1 text-[11px]"><Heart size={11} />{formatNumber(post.likes)}</span>span>
-                                                                                                    <span className="flex items-center gap-1 text-[11px]"><MessageCircle size={11} />{formatNumber(post.comments)}</span>span>
-                                                                            </div>div>
-                                                      </div>div>
+                                                                                                    <span className="flex items-center gap-1 text-[11px]"><Heart size={11} />{formatNumber(post.likes)}</span>
+                                                                                                    <span className="flex items-center gap-1 text-[11px]"><MessageCircle size={11} />{formatNumber(post.comments)}</span>
+                                                                            </div>
+                                                      </div>
                                                     ))}
-                                                              </div>div>
-                                              </div>div>
-                                </div>div>
+                                                              </div>
+                                              </div>
+                                </div>
                             )}
                   
                     {/* Reddit Trends */}
                     {(redditTrends || mockRedditTrends).length > 0 && (
                                 <div>
-                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Reddit Trends</h3>h3>
+                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Reddit Trends</h3>
                                               <div className="bg-armadillo-card border border-armadillo-border rounded-xl overflow-hidden">
                                                 {(redditTrends || mockRedditTrends).slice(0, 5).map((item, i) => (
                                                     <div key={i} className={`flex items-center gap-3 px-5 py-4 ${i < 4 ? 'border-b border-armadillo-border/50' : ''}`}>
                                                                         <div className="flex-1 min-w-0">
-                                                                                              <div className="text-sm text-armadillo-text font-medium truncate">{item.title}</div>div>
+                                                                                              <div className="text-sm text-armadillo-text font-medium truncate">{item.title}</div>
                                                                                               <div className="flex items-center gap-2 mt-1 text-xs text-armadillo-muted">
-                                                                                                                      <span>{item.subreddit}</span>span>
-                                                                                                {item.flair && <span className="bg-burnt/10 text-burnt px-1.5 py-0.5 rounded text-[10px]">{item.flair}</span>span>}
-                                                                                                </div>div>
-                                                                        </div>div>
+                                                                                                                      <span>{item.subreddit}</span>
+                                                                                                {item.flair && <span className="bg-burnt/10 text-burnt px-1.5 py-0.5 rounded text-[10px]">{item.flair}</span>}
+                                                                                                </div>
+                                                                        </div>
                                                                         <div className="text-right shrink-0">
                                                                                               <div className="text-sm font-display text-armadillo-text flex items-center gap-1">
                                                                                                                       <TrendingUp size={12} className="text-success" /> {formatNumber(item.upvotes)}
-                                                                                                </div>div>
-                                                                                              <div className="text-xs text-armadillo-muted">{formatNumber(item.comments)} comments</div>div>
-                                                                        </div>div>
-                                                    </div>div>
+                                                                                                </div>
+                                                                                              <div className="text-xs text-armadillo-muted">{formatNumber(item.comments)} comments</div>
+                                                                        </div>
+                                                    </div>
                                                   ))}
-                                              </div>div>
-                                </div>div>
+                                              </div>
+                                </div>
                             )}
                   
                     {/* TikTok Trends */}
                     {(tiktokTrends || mockTikTokTrends).length > 0 && (
                                 <div>
-                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">TikTok Trending Products</h3>h3>
+                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">TikTok Trending Products</h3>
                                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                 {(tiktokTrends || mockTikTokTrends).slice(0, 6).map((item, i) => (
                                                     <div key={i} className="bg-armadillo-card border border-armadillo-border rounded-xl p-4">
                                                                         <div className="flex items-center justify-between mb-1">
-                                                                                              <span className="text-sm font-medium text-armadillo-text">{item.productName}</span>span>
+                                                                                              <span className="text-sm font-medium text-armadillo-text">{item.productName}</span>
                                                                           {item.trendScore && (
                                                                               <span className={`text-[10px] px-2 py-0.5 rounded-full ${
                                                                                                           item.trendScore >= 85 ? 'bg-success/15 text-success' : 'bg-burnt/15 text-burnt'
                                                                                 }`}>
                                                                                                         Score: {item.trendScore}
-                                                                                </span>span>
+                                                                                </span>
                                                                                               )}
-                                                                        </div>div>
-                                                                        <div className="text-[10px] text-armadillo-muted mb-1">{item.category}</div>div>
-                                                      {item.description && <p className="text-xs text-armadillo-muted leading-relaxed">{item.description}</p>p>}
+                                                                        </div>
+                                                                        <div className="text-[10px] text-armadillo-muted mb-1">{item.category}</div>
+                                                      {item.description && <p className="text-xs text-armadillo-muted leading-relaxed">{item.description}</p>}
                                                       {item.relatedVideos && (
-                                                                            <div className="text-[10px] text-armadillo-muted mt-2">{formatNumber(item.relatedVideos)} related videos</div>div>
+                                                                            <div className="text-[10px] text-armadillo-muted mt-2">{formatNumber(item.relatedVideos)} related videos</div>
                                                                         )}
-                                                    </div>div>
+                                                    </div>
                                                   ))}
-                                              </div>div>
-                                </div>div>
+                                              </div>
+                                </div>
                             )}
-                  </div>div>
+                  </div>
               )}
         
           {/* Audience Tab */}
@@ -507,19 +507,19 @@ export default function InsightsPage() {
                                 <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
                                               <div className="w-16 h-16 rounded-full bg-burnt/15 flex items-center justify-center mx-auto mb-4">
                                                               <Lock size={28} className="text-burnt" />
-                                              </div>div>
-                                              <h2 className="font-display text-2xl text-armadillo-text mb-2">Audience Demographics</h2>h2>
+                                              </div>
+                                              <h2 className="font-display text-2xl text-armadillo-text mb-2">Audience Demographics</h2>
                                               <p className="text-armadillo-muted mb-6 max-w-md mx-auto">
                                                               Upgrade to Pro to unlock detailed audience demographics, including gender, age, location, and active hours.
-                                              </p>p>
+                                              </p>
                                               <button onClick={() => router.push('/settings')} className="bg-burnt hover:bg-burnt-light text-white px-6 py-3 rounded-xl font-medium transition-colors">
                                                               Upgrade to Pro
-                                              </button>button>
-                                </div>div>
+                                              </button>
+                                </div>
                               ) : (
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                               <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Gender Breakdown</h3>h3>
+                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Gender Breakdown</h3>
                                                               <div className="space-y-4">
                                                                 {[
                                   { label: 'Female', value: 64, color: 'bg-burnt' },
@@ -528,18 +528,18 @@ export default function InsightsPage() {
                                                     ].map((item) => (
                                                                           <div key={item.label}>
                                                                                                 <div className="flex justify-between text-sm mb-1.5">
-                                                                                                                        <span className="text-armadillo-text">{item.label}</span>span>
-                                                                                                                        <span className="text-armadillo-muted">{item.value}%</span>span>
-                                                                                                  </div>div>
+                                                                                                                        <span className="text-armadillo-text">{item.label}</span>
+                                                                                                                        <span className="text-armadillo-muted">{item.value}%</span>
+                                                                                                  </div>
                                                                                                 <div className="h-2.5 bg-armadillo-border rounded-full overflow-hidden">
                                                                                                                         <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.value}%` }} />
-                                                                                                  </div>div>
-                                                                          </div>div>
+                                                                                                  </div>
+                                                                          </div>
                                                                         ))}
-                                                              </div>div>
-                                              </div>div>
+                                                              </div>
+                                              </div>
                                               <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Age Range</h3>h3>
+                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Age Range</h3>
                                                               <div className="space-y-4">
                                                                 {[
                                   { range: '18-24', pct: 28 },
@@ -550,18 +550,18 @@ export default function InsightsPage() {
                                                     ].map((age) => (
                                                                           <div key={age.range}>
                                                                                                 <div className="flex justify-between text-sm mb-1.5">
-                                                                                                                        <span className="text-armadillo-text">{age.range}</span>span>
-                                                                                                                        <span className="text-armadillo-muted">{age.pct}%</span>span>
-                                                                                                  </div>div>
+                                                                                                                        <span className="text-armadillo-text">{age.range}</span>
+                                                                                                                        <span className="text-armadillo-muted">{age.pct}%</span>
+                                                                                                  </div>
                                                                                                 <div className="h-2.5 bg-armadillo-border rounded-full overflow-hidden">
                                                                                                                         <div className="h-full bg-burnt rounded-full" style={{ width: `${(age.pct / 42) * 100}%` }} />
-                                                                                                  </div>div>
-                                                                          </div>div>
+                                                                                                  </div>
+                                                                          </div>
                                                                         ))}
-                                                              </div>div>
-                                              </div>div>
+                                                              </div>
+                                              </div>
                                               <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Top Locations</h3>h3>
+                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Top Locations</h3>
                                                               <div className="space-y-3">
                                                                 {[
                                   { location: 'Austin, TX', pct: 24, emoji: '\uD83E\uDD20' },
@@ -572,16 +572,16 @@ export default function InsightsPage() {
                                                     ].map((loc) => (
                                                                           <div key={loc.location} className="flex items-center justify-between py-2">
                                                                                                 <div className="flex items-center gap-3">
-                                                                                                                        <span className="text-lg">{loc.emoji}</span>span>
-                                                                                                                        <span className="text-sm text-armadillo-text">{loc.location}</span>span>
-                                                                                                  </div>div>
-                                                                                                <span className="text-sm text-armadillo-muted font-medium">{loc.pct}%</span>span>
-                                                                          </div>div>
+                                                                                                                        <span className="text-lg">{loc.emoji}</span>
+                                                                                                                        <span className="text-sm text-armadillo-text">{loc.location}</span>
+                                                                                                  </div>
+                                                                                                <span className="text-sm text-armadillo-muted font-medium">{loc.pct}%</span>
+                                                                          </div>
                                                                         ))}
-                                                              </div>div>
-                                              </div>div>
+                                                              </div>
+                                              </div>
                                               <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Most Active Hours</h3>h3>
+                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Most Active Hours</h3>
                                                               <div className="flex items-end justify-between gap-1.5 h-36">
                                                                 {[15, 22, 35, 48, 62, 78, 95, 88, 72, 55, 40, 25].map((height, i) => {
                                                       const isPeak = height > 80;
@@ -590,17 +590,17 @@ export default function InsightsPage() {
                                                                                                       <div className={`w-full rounded-t-sm ${isPeak ? 'bg-burnt' : 'bg-armadillo-border'}`} style={{ height: `${height}%` }} />
                                                                                                       <span className="text-armadillo-muted text-[9px] mt-1.5">
                                                                                                         {6 + i * 1.5 < 12 ? `${Math.floor(6 + i * 1.5)}a` : `${Math.floor(6 + i * 1.5) - 12 || 12}p`}
-                                                                                                        </span>span>
-                                                                                </div>div>
+                                                                                                        </span>
+                                                                                </div>
                                                                             );
                                 })}
-                                                              </div>div>
-                                                              <p className="text-armadillo-muted text-xs mt-4 text-center">Peak activity: 5 PM - 7 PM CT</p>p>
-                                              </div>div>
-                                </div>div>
+                                                              </div>
+                                                              <p className="text-armadillo-muted text-xs mt-4 text-center">Peak activity: 5 PM - 7 PM CT</p>
+                                              </div>
+                                </div>
                             )}
-                  </div>div>
+                  </div>
               )}
-        </div>div>
+        </div>
       );
 }</div>
