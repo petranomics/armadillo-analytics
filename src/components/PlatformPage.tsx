@@ -131,10 +131,10 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                                                 }}
                                                                                         >
                                                                     {profile.displayName.charAt(0)}
-                                                                </div>div>
+                                                                </div>
                                                                 <div>
                                                                                         <div className="flex items-center gap-2">
-                                                                                                                    <h1 className="font-display text-2xl text-armadillo-text">{profile.displayName}</h1>h1>
+                                                                                                                    <h1 className="font-display text-2xl text-armadillo-text">{profile.displayName}</h1>
                                                                                                                     <span className="text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider"
                                                                                                                                                         style={{
                                                                                                                                                                                                 backgroundColor: `var(--color-platform-${profile.platform})`,
@@ -142,15 +142,15 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                                                                                                             }}
                                                                                                                                                     >
                                                                                                                         {platformName}
-                                                                                                                        </span>span>
+                                                                                                                        </span>
                                                                                             {profile.verified && (
-                                                    <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded">Verified</span>span>
+                                                    <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded">Verified</span>
                                                                                                                     )}
-                                                                                            </div>div>
-                                                                                        <p className="text-sm text-armadillo-muted">@{profile.username}</p>p>
-                                                                    {profile.bio && <p className="text-xs text-armadillo-muted mt-1 max-w-lg">{profile.bio}</p>p>}
-                                                                </div>div>
-                                            </div>div>
+                                                                                            </div>
+                                                                                        <p className="text-sm text-armadillo-muted">@{profile.username}</p>
+                                                                    {profile.bio && <p className="text-xs text-armadillo-muted mt-1 max-w-lg">{profile.bio}</p>}
+                                                                </div>
+                                            </div>
                             
                                 {/* Live Data Controls */}
                                             <div className="flex items-center gap-3">
@@ -158,19 +158,19 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                             <span className="flex items-center gap-1.5 text-[11px] text-success">
                                                                         <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
                                                                         Live Data
-                                            </span>span>
+                                            </span>
                                                                 )}
                                                 {!isLive && !loading && (
                                             <span className="flex items-center gap-1.5 text-[11px] text-armadillo-muted">
                                                                         <Database size={12} />
                                                 {hasCredentials ? 'Loading...' : 'Demo Data'}
-                                            </span>span>
+                                            </span>
                                                                 )}
                                                 {loading && (
                                             <span className="flex items-center gap-1.5 text-[11px] text-burnt">
                                                                         <RefreshCw size={12} className="animate-spin" />
                                                                         Fetching live data...
-                                            </span>span>
+                                            </span>
                                                                 )}
                                                 {hasCredentials ? (
                                             <button
@@ -180,24 +180,24 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                         >
                                                                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                                                 {loading ? 'Fetching...' : isLive ? 'Refresh' : 'Fetch Live Data'}
-                                            </button>button>
+                                            </button>
                                         ) : (
                                             <a
                                                                             href="/settings"
                                                                             className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-muted px-4 py-2 rounded-lg text-xs hover:border-burnt/50 transition-colors"
                                                                         >
                                                                         Configure in Settings
-                                            </a>a>
+                                            </a>
                                                                 )}
-                                            </div>div>
-                            </div>div>
+                                            </div>
+                            </div>
                 
                     {/* Error */}
                     {error && (
                                     <div className="bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 mb-6 flex items-center gap-2">
                                                         <AlertCircle size={16} className="text-danger" />
-                                                        <span className="text-sm text-danger">{error}</span>span>
-                                    </div>div>
+                                                        <span className="text-sm text-danger">{error}</span>
+                                    </div>
                             )}
                 
                     {/* KPI Cards */}
@@ -212,7 +212,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                 {totalSaves > 0 && (
                                         <KpiCard label="Total Saves" value={formatNumber(totalSaves)} icon={<Bookmark size={14} />} />
                                     )}
-                            </div>div>
+                            </div>
                 
                     {/* Charts */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -223,14 +223,14 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                     shares={totalShares}
                                                                     saves={totalSaves > 0 ? totalSaves : undefined}
                                                                 />
-                            </div>div>
+                            </div>
                 
                     {/* Posts Table */}
                             <div>
-                                            <h2 className="text-sm font-medium text-armadillo-text mb-3">All Posts ({posts.length})</h2>h2>
+                                            <h2 className="text-sm font-medium text-armadillo-text mb-3">All Posts ({posts.length})</h2>
                                             <DataTable posts={posts} />
-                            </div>div>
-                </div>div>
+                            </div>
+                </div>
             );
 }
 
