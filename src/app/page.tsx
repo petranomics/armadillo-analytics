@@ -7,7 +7,7 @@ import { USER_TYPES, ALL_METRICS, type MetricDefinition, type MetricCategory, CA
 import { PLATFORM_NAMES } from '@/lib/constants';
 import { getMockValue, getAIOneLiner } from '@/lib/ai-insights';
 import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, ArrowRight, Loader2 } from 'lucide-react';
-import dynamic from 'next/dynamc';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 
 const EngagementBreakdown = dynamic(() => import('@/components/charts/EngagementBreakdown'), { ssr: false });
