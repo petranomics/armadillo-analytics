@@ -452,7 +452,7 @@ export default function InsightsPage() {
                                                 {(redditTrends || mockRedditTrends).slice(0, 5).map((item, i) => (
                                                     <div key={i} className={`flex items-center gap-3 px-5 py-4 ${i < 4 ? 'border-b border-armadillo-border/50' : ''}`}>
                                                                         <div className="flex-1 min-w-0">
-                                                                                              <div className="text-sm text-armadillo-text font-medium truncate">{item.title}
+                                                                                              <div className="text-sm text-armadillo-text font-medium truncate">{item.title}</div>
 
                                                                                               <div className="flex items-center gap-2 mt-1 text-xs text-armadillo-muted">
                                                                                                                       <span>{item.subreddit}</span>
