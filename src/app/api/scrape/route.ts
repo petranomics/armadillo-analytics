@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
         biography: profile.biography,
         isVerified: profile.verified,
         profilePostsCount: profile.postsCount,
+        profilePicUrlHD: profile.profilePicUrlHD,
+        externalUrl: profile.externalUrl,
+        isBusinessAccount: profile.isBusinessAccount,
+        businessCategoryName: profile.businessCategoryName,
+        highlightReelCount: profile.highlightReelCount,
       }));
       return NextResponse.json({ results: enrichedPosts });
     }

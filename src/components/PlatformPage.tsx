@@ -7,10 +7,12 @@ import { useSettings } from '@/hooks/useSettings';
 import KpiCard from '@/components/cards/KpiCard';
 import EngagementChart from '@/components/charts/EngagementChart';
 import EngagementDonut from '@/components/charts/EngagementDonut';
-import ContentTypePieChart from '@/components/charts/ContentTypePieChart';
+import ContentPerformanceChart from '@/components/charts/ContentPerformanceChart';
 import TopHashtagsCard from '@/components/cards/TopHashtagsCard';
 import TopMentionsCard from '@/components/cards/TopMentionsCard';
 import BestTimeCard from '@/components/cards/BestTimeCard';
+import CollabTrackerCard from '@/components/cards/CollabTrackerCard';
+import AudioInsightsCard from '@/components/cards/AudioInsightsCard';
 import DataTable from '@/components/ui/DataTable';
 import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database } from 'lucide-react';
 
@@ -68,6 +70,11 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                         const metrics = transformMetrics(platform, item);
                                         const totalEng = metrics.likes + metrics.comments + (metrics.shares || 0);
                                         const followers = Number(item.followersCount || item.subscribersCount || item.followers || 1);
+                                        const musicRaw = item.musicInfo as Record<string, unknown> | undefined;
+                                        const taggedRaw = Array.isArray(item.taggedUsers) ? (item.taggedUsers as Record<string, unknown>[]) : undefined;
+                                        const dimW = Number(item.dimensionsWidth || 0);
+                                        const dimH = Number(item.dimensionsHeight || 0);
+
                                         return {
                                                                 id: `${platform}-live-${i}`,
                                                                 platform,
@@ -80,6 +87,23 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                 publishedAt: String(item.timestamp || item.createTime || item.publishedAt || item.date || item.createdAt || new Date().toISOString()),
                                                                 metrics,
                                                                 engagementRate: followers > 0 ? parseFloat(((totalEng / followers) * 100).toFixed(1)) : 0,
+                                                                shortCode: String(item.shortCode || '') || undefined,
+                                                                locationName: String(item.locationName || '') || undefined,
+                                                                musicInfo: musicRaw ? {
+                                                                        artist_name: String(musicRaw.artist_name || ''),
+                                                                        song_name: String(musicRaw.song_name || ''),
+                                                                        uses_original_audio: Boolean(musicRaw.uses_original_audio),
+                                                                        audio_id: String(musicRaw.audio_id || '') || undefined,
+                                                                } : undefined,
+                                                                taggedUsers: taggedRaw ? taggedRaw.map(u => ({
+                                                                        username: String(u.username || ''),
+                                                                        full_name: String(u.full_name || '') || undefined,
+                                                                        is_verified: Boolean(u.is_verified),
+                                                                })) : undefined,
+                                                                productType: String(item.productType || '') || undefined,
+                                                                aspectRatio: (dimW && dimH) ? dimW / dimH : undefined,
+                                                                isCommentsDisabled: item.isCommentsDisabled !== undefined ? Boolean(item.isCommentsDisabled) : undefined,
+                                                                childPostCount: Array.isArray(item.childPosts) ? (item.childPosts as unknown[]).length : undefined,
                                         };
                     });
 
@@ -99,6 +123,10 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                     totalPosts: Number(first.profilePostsCount || first.postsCount || first.videoCount || rawPosts.length),
                                                     bio: String(first.biography || first.bio || first.description || ''),
                                                     verified: Boolean(first.verified || first.isVerified),
+                                                    avatarUrlHD: String(first.profilePicUrlHD || '') || undefined,
+                                                    externalUrl: String(first.externalUrl || '') || undefined,
+                                                    isBusinessAccount: first.isBusinessAccount !== undefined ? Boolean(first.isBusinessAccount) : undefined,
+                                                    businessCategory: String(first.businessCategoryName || '') || undefined,
                                 };
 
                     const newData: PlatformData = {
@@ -253,15 +281,19 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                     saves={UNAVAILABLE_METRICS[platform]?.includes('saves') ? undefined : (totalSaves > 0 ? totalSaves : undefined)}
                                                                     platform={platform}
                                                                 />
-                                            <ContentTypePieChart posts={posts} />
+                                            <ContentPerformanceChart posts={posts} />
                             </div>
 
                     {/* Insights */}
                     <h2 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Insights</h2>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
                                             <TopHashtagsCard posts={posts} />
                                             <TopMentionsCard posts={posts} />
                                             <BestTimeCard posts={posts} />
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                                            <CollabTrackerCard posts={posts} />
+                                            <AudioInsightsCard posts={posts} />
                             </div>
 
                     {/* Posts Table */}

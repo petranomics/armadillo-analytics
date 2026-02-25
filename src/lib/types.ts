@@ -1,5 +1,18 @@
 export type Platform = 'tiktok' | 'instagram' | 'youtube' | 'twitter' | 'linkedin';
 
+export interface MusicInfo {
+  artist_name: string;
+  song_name: string;
+  uses_original_audio: boolean;
+  audio_id?: string;
+}
+
+export interface TaggedUser {
+  username: string;
+  full_name?: string;
+  is_verified?: boolean;
+}
+
 export interface Post {
   id: string;
   platform: Platform;
@@ -21,6 +34,15 @@ export interface Post {
     reactions?: Record<string, number>;
   };
   engagementRate: number;
+  // Extended fields from API
+  shortCode?: string;
+  locationName?: string;
+  musicInfo?: MusicInfo;
+  taggedUsers?: TaggedUser[];
+  productType?: string;
+  aspectRatio?: number;
+  isCommentsDisabled?: boolean;
+  childPostCount?: number;
 }
 
 export interface PlatformProfile {
@@ -28,11 +50,15 @@ export interface PlatformProfile {
   username: string;
   displayName: string;
   avatarUrl?: string;
+  avatarUrlHD?: string;
   followers: number;
   following?: number;
   totalPosts: number;
   bio?: string;
   verified?: boolean;
+  externalUrl?: string;
+  isBusinessAccount?: boolean;
+  businessCategory?: string;
 }
 
 export interface PlatformData {

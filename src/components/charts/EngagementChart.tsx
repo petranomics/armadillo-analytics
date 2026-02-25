@@ -11,23 +11,26 @@ interface EngagementChartProps {
 }
 
 function buildTimelineFromPosts(posts: Post[]): { date: string; total: number }[] {
-    const grouped: Record<string, number> = {};
+    const grouped: Record<string, { total: number; ts: number }> = {};
 
   posts.forEach((post) => {
         const d = new Date(post.publishedAt);
         if (isNaN(d.getTime())) return;
-        const key = `${d.getMonth() + 1}/${d.getDate()}`;
+        // Use ISO date as key to prevent cross-year collisions
+        const key = d.toISOString().slice(0, 10);
         const eng = (post.metrics.likes || 0) + (post.metrics.comments || 0) + (post.metrics.shares || 0);
-        grouped[key] = (grouped[key] || 0) + eng;
+        if (!grouped[key]) grouped[key] = { total: 0, ts: d.getTime() };
+        grouped[key].total += eng;
   });
 
   return Object.entries(grouped)
-      .map(([date, total]) => ({ date, total }))
-      .sort((a, b) => {
-              const [am, ad] = a.date.split('/').map(Number);
-              const [bm, bd] = b.date.split('/').map(Number);
-              return am !== bm ? am - bm : ad - bd;
-      });
+      .map(([, { total, ts }]) => ({
+              date: new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+              total,
+              _ts: ts,
+      }))
+      .sort((a, b) => a._ts - b._ts)
+      .map(({ date, total }) => ({ date, total }));
 }
 
 export default function EngagementChart({ platform, posts }: EngagementChartProps) {
