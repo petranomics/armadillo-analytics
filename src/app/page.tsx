@@ -130,6 +130,7 @@ export default function DashboardPage() {
   };
 
   // Helper to get metric value from live data or mock
+  // NOTE: Only returns real scraped data. Metrics not available from public scraping show '--'.
   function getMetricValue(metric: MetricDefinition): { value: string; trend: number; raw: number } {
         if (!liveMetrics) return getMockValue(metric);
 
@@ -139,27 +140,31 @@ export default function DashboardPage() {
               return n.toLocaleString();
       };
 
+      // trend: 0 = no trend data (we can't calculate trends from a single scrape snapshot)
       switch (metric.id) {
         case 'engagement_rate':
-                  return { value: `${liveMetrics.engagementRate}%`, trend: 3, raw: liveMetrics.engagementRate };
+                  return { value: `${liveMetrics.engagementRate}%`, trend: 0, raw: liveMetrics.engagementRate };
         case 'likes':
-                  return { value: formatNum(liveMetrics.totalLikes), trend: -3, raw: liveMetrics.totalLikes };
+                  return { value: formatNum(liveMetrics.totalLikes), trend: 0, raw: liveMetrics.totalLikes };
         case 'follower_growth':
-                  return { value: formatNum(liveMetrics.followers), trend: -3, raw: liveMetrics.followers };
-        case 'profile_views':
-                  return { value: formatNum(liveMetrics.totalViews), trend: -3, raw: liveMetrics.totalViews };
+                  return { value: formatNum(liveMetrics.followers), trend: 0, raw: liveMetrics.followers };
         case 'comments':
-                  return { value: formatNum(liveMetrics.totalComments), trend: 2, raw: liveMetrics.totalComments };
+                  return { value: formatNum(liveMetrics.totalComments), trend: 0, raw: liveMetrics.totalComments };
         case 'shares':
-                  return { value: formatNum(liveMetrics.totalShares), trend: 1, raw: liveMetrics.totalShares };
+                  return { value: liveMetrics.totalShares > 0 ? formatNum(liveMetrics.totalShares) : '--', trend: 0, raw: liveMetrics.totalShares };
         case 'saves':
-                  return { value: formatNum(liveMetrics.totalSaves), trend: -1, raw: liveMetrics.totalSaves };
+                  return { value: liveMetrics.totalSaves > 0 ? formatNum(liveMetrics.totalSaves) : '--', trend: 0, raw: liveMetrics.totalSaves };
         case 'views':
-                  return { value: formatNum(liveMetrics.totalViews), trend: 5, raw: liveMetrics.totalViews };
+        case 'video_views':
+                  return { value: liveMetrics.totalViews > 0 ? formatNum(liveMetrics.totalViews) : '--', trend: 0, raw: liveMetrics.totalViews };
+        case 'profile_views':
         case 'reach':
-                  return { value: formatNum(Math.round(liveMetrics.totalViews * 0.7)), trend: 4, raw: Math.round(liveMetrics.totalViews * 0.7) };
         case 'impressions':
-                  return { value: formatNum(Math.round(liveMetrics.totalViews * 1.3)), trend: 3, raw: Math.round(liveMetrics.totalViews * 1.3) };
+        case 'website_taps':
+        case 'directions_taps':
+        case 'call_taps':
+                  // Not available from public scraping
+                  return { value: '--', trend: 0, raw: 0 };
         default:
                   return getMockValue(metric);
       }
@@ -250,16 +255,20 @@ export default function DashboardPage() {
                                                                 <span className="text-[10px] text-armadillo-muted uppercase tracking-wider font-medium truncate">{metric.label}</span>
                                                 </div>
                                                 <div className="font-display text-3xl text-armadillo-text mb-1">{value}</div>
+                                                {trend !== 0 && (
                                                 <div className={`flex items-center gap-1 text-xs ${trend >= 0 ? 'text-success' : 'text-danger'}`}>
                                                   {trend >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                                                   {Math.abs(trend)}% this period
                                                 </div>
+                                                )}
+                                                {!isLive && (
                                                 <div className="flex items-start gap-1.5 mt-3 pt-3 border-t border-armadillo-border/50">
                                                                 <Sparkles size={10} className="text-burnt shrink-0 mt-0.5" />
                                                                 <p className={`text-[11px] leading-relaxed text-armadillo-muted ${isExpanded ? '' : 'line-clamp-2'}`}>
                                                                   {aiLine}
                                                                 </p>
                                                 </div>
+                                                )}
                                     {isExpanded && (
                                                                   <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-armadillo-border/50">
                                                                                     <Info size={10} className="text-armadillo-muted shrink-0 mt-0.5" />
@@ -313,10 +322,12 @@ export default function DashboardPage() {
                                                                                                                 </div>
                                                                                                               <div className="text-right shrink-0">
                                                                                                                                       <div className="text-base font-display text-armadillo-text">{value}</div>
+                                                                                                                                      {trend !== 0 && (
                                                                                                                                       <div className={`text-[11px] flex items-center justify-end gap-0.5 ${trend >= 0 ? 'text-success' : 'text-danger'}`}>
                                                                                                                                         {trend >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                                                                                                                                         {Math.abs(trend)}%
                                                                                                                                         </div>
+                                                                                                                                      )}
                                                                                                                 </div>
                                                                                           {isExpanded ? (
                                                                                                                                         <ChevronUp size={16} className="text-armadillo-border shrink-0" />

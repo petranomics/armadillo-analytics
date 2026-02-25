@@ -10,6 +10,15 @@ import EngagementDonut from '@/components/charts/EngagementDonut';
 import DataTable from '@/components/ui/DataTable';
 import { Users, TrendingUp, Eye, Heart, MessageCircle, Bookmark, RefreshCw, AlertCircle, Database } from 'lucide-react';
 
+// Metrics that are NOT available from public scraping per platform
+const UNAVAILABLE_METRICS: Record<string, string[]> = {
+	instagram: ['shares', 'saves', 'reach', 'impressions', 'profileViews'],
+	tiktok: ['reach', 'impressions', 'profileViews'],
+	youtube: ['shares', 'saves', 'reach', 'impressions'],
+	twitter: ['saves', 'reach', 'impressions'],
+	linkedin: ['saves', 'views', 'reach', 'impressions'],
+};
+
 function formatNumber(n: number): string {
         if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
         if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
@@ -202,33 +211,34 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
 
                     {/* KPI Cards */}
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-                                            <KpiCard label="Followers" value={formatNumber(profile.followers)} trend={3.2} icon={<Users size={14} />} />
-                                            <KpiCard label="Engagement Rate" value={`${summary.avgEngagementRate}%`} trend={1.8} icon={<TrendingUp size={14} />} />
-                                {summary.totalViews !== undefined && (
-                                        <KpiCard label="Total Views" value={formatNumber(summary.totalViews)} trend={12.4} icon={<Eye size={14} />} />
+                                            <KpiCard label="Followers" value={formatNumber(profile.followers)} icon={<Users size={14} />} />
+                                            <KpiCard label="Engagement Rate" value={`${summary.avgEngagementRate}%`} trendLabel="likes + comments / followers" icon={<TrendingUp size={14} />} />
+                                {summary.totalViews !== undefined && summary.totalViews > 0 && (
+                                        <KpiCard label="Total Views" value={formatNumber(summary.totalViews)} icon={<Eye size={14} />} />
                                     )}
                                             <KpiCard label="Total Likes" value={formatNumber(totalLikes)} icon={<Heart size={14} />} />
                                             <KpiCard label="Total Comments" value={formatNumber(totalComments)} icon={<MessageCircle size={14} />} />
-                                {totalSaves > 0 && (
-                                        <KpiCard label="Total Saves" value={formatNumber(totalSaves)} icon={<Bookmark size={14} />} />
+                                {!UNAVAILABLE_METRICS[platform]?.includes('shares') && totalShares > 0 && (
+                                        <KpiCard label="Total Shares" value={formatNumber(totalShares)} icon={<Bookmark size={14} />} />
                                     )}
                             </div>
 
                     {/* Charts */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                                            <EngagementChart platform={profile.platform} />
+                                            <EngagementChart platform={profile.platform} posts={posts} />
                                             <EngagementDonut
                                                                     likes={totalLikes}
                                                                     comments={totalComments}
-                                                                    shares={totalShares}
-                                                                    saves={totalSaves > 0 ? totalSaves : undefined}
+                                                                    shares={UNAVAILABLE_METRICS[platform]?.includes('shares') ? undefined : totalShares}
+                                                                    saves={UNAVAILABLE_METRICS[platform]?.includes('saves') ? undefined : (totalSaves > 0 ? totalSaves : undefined)}
+                                                                    platform={platform}
                                                                 />
                             </div>
 
                     {/* Posts Table */}
                             <div>
                                             <h2 className="text-sm font-medium text-armadillo-text mb-3">All Posts ({posts.length})</h2>
-                                            <DataTable posts={posts} />
+                                            <DataTable posts={posts} hideShares={UNAVAILABLE_METRICS[platform]?.includes('shares')} />
                             </div>
                 </div>
             );

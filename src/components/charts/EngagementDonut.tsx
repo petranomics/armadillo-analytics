@@ -5,8 +5,9 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 interface EngagementDonutProps {
   likes: number;
   comments: number;
-  shares: number;
+  shares?: number;
   saves?: number;
+  platform?: string;
 }
 
 const COLORS = ['#BF5700', '#E87A2A', '#8C3F00', '#FFF3E6'];
@@ -21,7 +22,7 @@ export default function EngagementDonut({ likes, comments, shares, saves }: Enga
   const data = [
     { name: 'Likes', value: likes },
     { name: 'Comments', value: comments },
-    { name: 'Shares', value: shares },
+    ...(shares ? [{ name: 'Shares', value: shares }] : []),
     ...(saves ? [{ name: 'Saves', value: saves }] : []),
   ];
 

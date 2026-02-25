@@ -12,7 +12,7 @@ function formatNumber(n: number): string {
 
 type SortKey = 'date' | 'likes' | 'comments' | 'views' | 'engagement';
 
-export default function DataTable({ posts }: { posts: Post[] }) {
+export default function DataTable({ posts, hideShares }: { posts: Post[]; hideShares?: boolean }) {
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -91,9 +91,11 @@ export default function DataTable({ posts }: { posts: Post[] }) {
             >
               <span className="flex items-center justify-end gap-1"><MessageCircle size={10} /> Comments <SortIcon col="comments" /></span>
             </th>
+            {!hideShares && (
             <th className="px-3 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted text-right">
               <span className="flex items-center justify-end gap-1"><Share2 size={10} /> Shares</span>
             </th>
+            )}
             <th
               className="px-3 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted cursor-pointer hover:text-armadillo-text text-right"
               onClick={() => handleSort('engagement')}
@@ -120,9 +122,11 @@ export default function DataTable({ posts }: { posts: Post[] }) {
               <td className="px-3 py-3 text-right text-xs text-armadillo-text tabular-nums">
                 {formatNumber(post.metrics.comments)}
               </td>
+              {!hideShares && (
               <td className="px-3 py-3 text-right text-xs text-armadillo-text tabular-nums">
                 {post.metrics.shares !== undefined ? formatNumber(post.metrics.shares) : '-'}
               </td>
+              )}
               <td className="px-3 py-3 text-right text-xs font-medium text-burnt tabular-nums">
                 {post.engagementRate}%
               </td>
