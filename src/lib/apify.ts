@@ -29,7 +29,11 @@ export function getActorInput(platform: Platform, username: string): { actorId: 
       case 'instagram':
               return {
                         actorId: APIFY_ACTORS.instagram,
-                        input: { usernames: [username.replace('@', '')] },
+                        input: {
+                                    directUrls: [`https://www.instagram.com/${username.replace(/^@/, '')}/`],
+                                    resultsLimit: 20,
+                                    resultsType: 'details',
+                        },
               };
       case 'youtube':
               return {

@@ -31,9 +31,26 @@ export async function POST(request: NextRequest) {
     }
 
     const { actorId, input } = getActorInput(platform, username);
-    const results = await runActorSync(actorId, input, apiKey);
+    const rawResults = await runActorSync(actorId, input, apiKey);
 
-    return NextResponse.json({ results });
+    // Instagram "details" response: first item is the profile with latestPosts inside
+    if (platform === 'instagram' && rawResults.length > 0) {
+      const profile = rawResults[0] as Record<string, unknown>;
+      const posts = (profile.latestPosts || []) as Record<string, unknown>[];
+      // Attach profile-level data to each post so PlatformPage can extract it
+      const enrichedPosts = posts.map(post => ({
+        ...post,
+        followersCount: profile.followersCount,
+        followingCount: profile.followsCount,
+        ownerFullName: profile.fullName,
+        biography: profile.biography,
+        isVerified: profile.verified,
+        profilePostsCount: profile.postsCount,
+      }));
+      return NextResponse.json({ results: enrichedPosts });
+    }
+
+    return NextResponse.json({ results: rawResults });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

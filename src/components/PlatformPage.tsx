@@ -79,7 +79,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                     displayName: String(first.ownerFullName || first.authorName || first.channelName || first.name || first.authorDisplayName || settings.usernames[platform] || ''),
                                                     followers: Number(first.followersCount || first.subscribersCount || first.followers || first.userFollowersCount || 0),
                                                     following: Number(first.followingCount || first.following || 0),
-                                                    totalPosts: rawPosts.length,
+                                                    totalPosts: Number(first.profilePostsCount || first.postsCount || first.videoCount || rawPosts.length),
                                                     bio: String(first.biography || first.bio || first.description || ''),
                                                     verified: Boolean(first.verified || first.isVerified),
                                 };
@@ -151,7 +151,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                     {profile.bio && <p className="text-xs text-armadillo-muted mt-1 max-w-lg">{profile.bio}</p>}
                                                                 </div>
                                             </div>
-                            
+
                                 {/* Live Data Controls */}
                                             <div className="flex items-center gap-3">
                                                 {isLive && (
@@ -191,7 +191,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                 )}
                                             </div>
                             </div>
-                
+
                     {/* Error */}
                     {error && (
                                     <div className="bg-danger/10 border border-danger/30 rounded-lg px-4 py-3 mb-6 flex items-center gap-2">
@@ -199,7 +199,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                         <span className="text-sm text-danger">{error}</span>
                                     </div>
                             )}
-                
+
                     {/* KPI Cards */}
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
                                             <KpiCard label="Followers" value={formatNumber(profile.followers)} trend={3.2} icon={<Users size={14} />} />
@@ -213,7 +213,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                         <KpiCard label="Total Saves" value={formatNumber(totalSaves)} icon={<Bookmark size={14} />} />
                                     )}
                             </div>
-                
+
                     {/* Charts */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
                                             <EngagementChart platform={profile.platform} />
@@ -224,7 +224,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                     saves={totalSaves > 0 ? totalSaves : undefined}
                                                                 />
                             </div>
-                
+
                     {/* Posts Table */}
                             <div>
                                             <h2 className="text-sm font-medium text-armadillo-text mb-3">All Posts ({posts.length})</h2>
