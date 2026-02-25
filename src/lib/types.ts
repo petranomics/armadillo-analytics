@@ -6,6 +6,9 @@ export interface Post {
   url: string;
   caption: string;
   thumbnailUrl?: string;
+  contentType?: string;
+  hashtags?: string[];
+  mentions?: string[];
   publishedAt: string;
   metrics: {
     views?: number;

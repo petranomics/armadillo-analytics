@@ -7,8 +7,12 @@ import { useSettings } from '@/hooks/useSettings';
 import KpiCard from '@/components/cards/KpiCard';
 import EngagementChart from '@/components/charts/EngagementChart';
 import EngagementDonut from '@/components/charts/EngagementDonut';
+import ContentTypePieChart from '@/components/charts/ContentTypePieChart';
+import TopHashtagsCard from '@/components/cards/TopHashtagsCard';
+import TopMentionsCard from '@/components/cards/TopMentionsCard';
+import BestTimeCard from '@/components/cards/BestTimeCard';
 import DataTable from '@/components/ui/DataTable';
-import { Users, TrendingUp, Eye, Heart, MessageCircle, Bookmark, RefreshCw, AlertCircle, Database } from 'lucide-react';
+import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database } from 'lucide-react';
 
 // Metrics that are NOT available from public scraping per platform
 const UNAVAILABLE_METRICS: Record<string, string[]> = {
@@ -69,6 +73,10 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                 platform,
                                                                 url: String(item.url || item.postUrl || item.webVideoUrl || item.link || '#'),
                                                                 caption: String(item.caption || item.text || item.title || item.description || item.fullText || ''),
+                                                                thumbnailUrl: String(item.displayUrl || item.thumbnailUrl || ''),
+                                                                contentType: String(item.type || item.productType || 'Image'),
+                                                                hashtags: Array.isArray(item.hashtags) ? (item.hashtags as string[]) : [],
+                                                                mentions: Array.isArray(item.mentions) ? (item.mentions as string[]) : [],
                                                                 publishedAt: String(item.timestamp || item.createTime || item.publishedAt || item.date || item.createdAt || new Date().toISOString()),
                                                                 metrics,
                                                                 engagementRate: followers > 0 ? parseFloat(((totalEng / followers) * 100).toFixed(1)) : 0,
@@ -209,22 +217,34 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                     </div>
                             )}
 
-                    {/* KPI Cards */}
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                    {/* Key Metrics */}
+                    <h2 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Key Metrics</h2>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
                                             <KpiCard label="Followers" value={formatNumber(profile.followers)} icon={<Users size={14} />} />
+                                {profile.following !== undefined && profile.following > 0 && (
+                                        <KpiCard label="Following" value={formatNumber(profile.following)} trendLabel={`Ratio: ${(profile.followers / profile.following).toFixed(1)}:1`} icon={<UserPlus size={14} />} />
+                                    )}
+                                            <KpiCard label="Total Posts" value={formatNumber(profile.totalPosts)} icon={<Grid3X3 size={14} />} />
                                             <KpiCard label="Engagement Rate" value={`${summary.avgEngagementRate}%`} trendLabel="likes + comments / followers" icon={<TrendingUp size={14} />} />
                                 {summary.totalViews !== undefined && summary.totalViews > 0 && (
                                         <KpiCard label="Total Views" value={formatNumber(summary.totalViews)} icon={<Eye size={14} />} />
                                     )}
                                             <KpiCard label="Total Likes" value={formatNumber(totalLikes)} icon={<Heart size={14} />} />
                                             <KpiCard label="Total Comments" value={formatNumber(totalComments)} icon={<MessageCircle size={14} />} />
+                                {posts.length > 0 && (
+                                        <KpiCard label="Avg. Likes/Post" value={formatNumber(Math.round(totalLikes / posts.length))} icon={<BarChart3 size={14} />} />
+                                    )}
+                                {posts.length > 0 && (
+                                        <KpiCard label="Avg. Comments/Post" value={formatNumber(Math.round(totalComments / posts.length))} icon={<MessageCircle size={14} />} />
+                                    )}
                                 {!UNAVAILABLE_METRICS[platform]?.includes('shares') && totalShares > 0 && (
                                         <KpiCard label="Total Shares" value={formatNumber(totalShares)} icon={<Bookmark size={14} />} />
                                     )}
                             </div>
 
                     {/* Charts */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                    <h2 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Charts</h2>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
                                             <EngagementChart platform={profile.platform} posts={posts} />
                                             <EngagementDonut
                                                                     likes={totalLikes}
@@ -233,11 +253,20 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                     saves={UNAVAILABLE_METRICS[platform]?.includes('saves') ? undefined : (totalSaves > 0 ? totalSaves : undefined)}
                                                                     platform={platform}
                                                                 />
+                                            <ContentTypePieChart posts={posts} />
+                            </div>
+
+                    {/* Insights */}
+                    <h2 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Insights</h2>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                                            <TopHashtagsCard posts={posts} />
+                                            <TopMentionsCard posts={posts} />
+                                            <BestTimeCard posts={posts} />
                             </div>
 
                     {/* Posts Table */}
+                    <h2 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">All Posts ({posts.length})</h2>
                             <div>
-                                            <h2 className="text-sm font-medium text-armadillo-text mb-3">All Posts ({posts.length})</h2>
                                             <DataTable posts={posts} hideShares={UNAVAILABLE_METRICS[platform]?.includes('shares')} />
                             </div>
                 </div>

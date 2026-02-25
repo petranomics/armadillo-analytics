@@ -37,9 +37,9 @@ function normalizeHashtagStats(item: unknown): HashtagStats {
     hashtag: String(r.hashtag || r.name || r.tag || ''),
     postCount,
     relatedHashtags: Array.isArray(r.relatedHashtags)
-      ? (r.relatedHashtags as string[]).slice(0, 10)
+      ? (r.relatedHashtags as unknown[]).map(h => typeof h === 'string' ? h : typeof h === 'object' && h !== null ? ((h as Record<string, unknown>).name || (h as Record<string, unknown>).tag || String(h)) as string : String(h)).slice(0, 10)
       : Array.isArray(r.related)
-        ? (r.related as { name: string }[]).map(h => h.name || String(h)).slice(0, 10)
+        ? (r.related as unknown[]).map(h => typeof h === 'string' ? h : typeof h === 'object' && h !== null ? ((h as Record<string, unknown>).name || (h as Record<string, unknown>).tag || String(h)) as string : String(h)).slice(0, 10)
         : [],
     avgEngagement: Number(r.avgEngagement || r.averageEngagement || 0) || undefined,
     trend,

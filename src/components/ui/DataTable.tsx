@@ -64,7 +64,9 @@ export default function DataTable({ posts, hideShares }: { posts: Post[]; hideSh
       <table className="w-full">
         <thead>
           <tr className="border-b border-armadillo-border">
-            <th className="text-left px-4 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted w-[45%]">
+            <th className="px-4 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted w-[50px]">
+            </th>
+            <th className="text-left px-2 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted">
               Post
             </th>
             <th
@@ -107,7 +109,21 @@ export default function DataTable({ posts, hideShares }: { posts: Post[]; hideSh
         <tbody>
           {sorted.map((post) => (
             <tr key={post.id} className="border-b border-armadillo-border/50 hover:bg-armadillo-border/20 transition-colors">
-              <td className="px-4 py-3">
+              <td className="px-4 py-2 w-[50px]">
+                {post.thumbnailUrl ? (
+                  <img
+                    src={post.thumbnailUrl}
+                    alt=""
+                    className="w-10 h-10 rounded-md object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-md bg-armadillo-border/50 flex items-center justify-center">
+                    <span className="text-[9px] text-armadillo-muted">No img</span>
+                  </div>
+                )}
+              </td>
+              <td className="px-2 py-3">
                 <p className="text-sm text-armadillo-text truncate max-w-sm">{post.caption}</p>
               </td>
               <td className="px-3 py-3 text-right text-xs text-armadillo-muted whitespace-nowrap">

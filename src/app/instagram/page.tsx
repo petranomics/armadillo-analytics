@@ -84,9 +84,10 @@ function TrendingHashtags() {
                                     </div>
                         {tag.relatedHashtags.length > 0 && (
                                         <div className="flex flex-wrap gap-1">
-                                          {tag.relatedHashtags.slice(0, 5).map(r => (
-                                                              <span key={r} className="text-[10px] bg-armadillo-card text-armadillo-muted px-2 py-0.5 rounded">#{r}</span>
-                                                            ))}
+                                          {tag.relatedHashtags.slice(0, 5).map((r, idx) => {
+                                                              const label = typeof r === 'string' ? r : typeof r === 'object' && r !== null ? ((r as Record<string, unknown>).name || (r as Record<string, unknown>).tag || JSON.stringify(r)) as string : String(r);
+                                                              return <span key={`${label}-${idx}`} className="text-[10px] bg-armadillo-card text-armadillo-muted px-2 py-0.5 rounded">#{label}</span>;
+                                                            })}
                                         </div>
                                     )}
                       </div>
