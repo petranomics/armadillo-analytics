@@ -1,105 +1,118 @@
 'use client';
 
 import { useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { mockEngagementTimeline } from '@/lib/mock-data';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import type { Post } from '@/lib/types';
+import { Trophy } from 'lucide-react';
 
 interface EngagementChartProps {
     platform?: string;
     posts?: Post[];
 }
 
-function buildTimelineFromPosts(posts: Post[]): { date: string; total: number }[] {
-    const grouped: Record<string, { total: number; ts: number }> = {};
+function formatNumber(n: number): string {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toString();
+}
 
-  posts.forEach((post) => {
-        const d = new Date(post.publishedAt);
-        if (isNaN(d.getTime())) return;
-        // Use ISO date as key to prevent cross-year collisions
-        const key = d.toISOString().slice(0, 10);
-        const eng = (post.metrics.likes || 0) + (post.metrics.comments || 0) + (post.metrics.shares || 0);
-        if (!grouped[key]) grouped[key] = { total: 0, ts: d.getTime() };
-        grouped[key].total += eng;
-  });
+function truncate(s: string, len: number): string {
+  if (s.length <= len) return s;
+  return s.slice(0, len).trim() + '…';
+}
 
-  return Object.entries(grouped)
-      .map(([, { total, ts }]) => ({
-              date: new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-              total,
-              _ts: ts,
-      }))
-      .sort((a, b) => a._ts - b._ts)
-      .map(({ date, total }) => ({ date, total }));
+interface PostBar {
+  label: string;
+  engagement: number;
+  engRate: number;
+  caption: string;
+}
+
+function buildPostBars(posts: Post[]): PostBar[] {
+  return posts
+    .map((p, i) => ({
+      label: `#${i + 1}`,
+      engagement: p.metrics.likes + p.metrics.comments,
+      engRate: p.engagementRate,
+      caption: p.caption || `Post ${i + 1}`,
+    }))
+    .sort((a, b) => b.engagement - a.engagement)
+    .slice(0, 12);
 }
 
 export default function EngagementChart({ platform, posts }: EngagementChartProps) {
-    const dataKey = platform || 'total';
-
   const color = platform
       ? `var(--color-platform-${platform})`
         : '#BF5700';
 
-  const chartData = useMemo(() => {
-        if (posts && posts.length > 0) {
-                const timeline = buildTimelineFromPosts(posts);
-                if (timeline.length > 0) {
-                          return { data: timeline, key: 'total', isLive: true };
-                }
-        }
-        return { data: mockEngagementTimeline, key: dataKey, isLive: false };
-  }, [posts, dataKey]);
+  const bars = useMemo(() => {
+    if (posts && posts.length > 0) {
+      return buildPostBars(posts);
+    }
+    return [];
+  }, [posts]);
+
+  if (bars.length === 0) {
+    return (
+      <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Trophy size={14} className="text-burnt" />
+          <h3 className="text-sm font-medium text-armadillo-text">Top Posts by Engagement</h3>
+        </div>
+        <p className="text-xs text-armadillo-muted">No post data available</p>
+      </div>
+    );
+  }
 
   return (
-        <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-medium text-armadillo-text">Engagement Over Time</h3>
-                      <span className="text-[11px] text-armadillo-muted bg-armadillo-bg px-3 py-1 rounded border border-armadillo-border">
-                        {chartData.isLive ? 'Live Data' : 'Last 30 days'}
-                      </span>
-              </div>
-        
-              <ResponsiveContainer width="100%" height={220}>
-                      <AreaChart data={chartData.data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                                <defs>
-                                            <linearGradient id={`gradient-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-                                                          <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                                                          <stop offset="95%" stopColor={color} stopOpacity={0.02} />
-                                            </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#2A2D37" vertical={false} />
-                                <XAxis
-                                              dataKey="date"
-                                              tick={{ fill: '#8B8D97', fontSize: 10 }}
-                                              tickLine={false}
-                                              axisLine={{ stroke: '#2A2D37' }}
-                                              interval={chartData.isLive ? 0 : 4}
-                                            />
-                                <YAxis
-                                              tick={{ fill: '#8B8D97', fontSize: 10 }}
-                                              tickLine={false}
-                                              axisLine={false}
-                                              tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)}
-                                            />
-                                <Tooltip
-                                              contentStyle={{
-                                                              background: '#1A1D27',
-                                                              border: '1px solid #2A2D37',
-                                                              borderRadius: '8px',
-                                                              fontSize: '12px',
-                                                              color: '#E8E6E3',
-                                              }}
-                                              formatter={(value) => [Number(value).toLocaleString(), 'Engagement']}
-                                            />
-                                <Area
-                                              type="monotone"
-                                              dataKey={chartData.key}
-                                              stroke={color}
-                                              strokeWidth={2}
-                                              fill={`url(#gradient-${dataKey})`}
-                                            />
-                      </AreaChart>
-              </ResponsiveContainer>
+    <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Trophy size={14} className="text-burnt" />
+          <h3 className="text-sm font-medium text-armadillo-text">Top Posts by Engagement</h3>
         </div>
-      );
+        <span className="text-[11px] text-armadillo-muted bg-armadillo-bg px-3 py-1 rounded border border-armadillo-border">
+          {posts ? 'Live Data' : 'Demo'}
+        </span>
+      </div>
+
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={bars} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#2A2D37" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: '#8B8D97', fontSize: 10 }}
+            tickLine={false}
+            axisLine={{ stroke: '#2A2D37' }}
+          />
+          <YAxis
+            tick={{ fill: '#8B8D97', fontSize: 10 }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(v: number) => formatNumber(v)}
+          />
+          <Tooltip
+            contentStyle={{
+              background: '#1A1D27',
+              border: '1px solid #2A2D37',
+              borderRadius: '8px',
+              fontSize: '12px',
+              color: '#E8E6E3',
+            }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const data = payload[0].payload as PostBar;
+              return (
+                <div className="bg-[#1A1D27] border border-[#2A2D37] rounded-lg px-3 py-2 max-w-[240px]">
+                  <p className="text-[11px] text-[#E8E6E3] mb-1">{truncate(data.caption, 80)}</p>
+                  <p className="text-[11px] text-[#BF5700] font-medium">{formatNumber(data.engagement)} engagement &middot; {data.engRate}% rate</p>
+                </div>
+              );
+            }}
+          />
+          <Bar dataKey="engagement" radius={[4, 4, 0, 0]} fill={color} fillOpacity={0.85} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
 }
