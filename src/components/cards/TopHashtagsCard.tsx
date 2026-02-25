@@ -26,6 +26,13 @@ export default function TopHashtagsCard({ posts }: TopHashtagsCardProps) {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
+  // Check if avg engagement is meaningfully different across hashtags
+  const uniqueAvgs = new Set(sorted.map(s => s.avgEng));
+  const showAvgEng = uniqueAvgs.size > 1;
+
+  // Count how many posts actually use hashtags
+  const postsWithHashtags = posts.filter(p => p.hashtags && p.hashtags.length > 0).length;
+
   return (
     <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
       <div className="flex items-center gap-2 mb-4">
@@ -41,10 +48,19 @@ export default function TopHashtagsCard({ posts }: TopHashtagsCardProps) {
               <span className="text-xs text-armadillo-text">#{item.tag}</span>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] text-armadillo-muted">{item.count} {item.count === 1 ? 'post' : 'posts'}</span>
-                <span className="text-[10px] text-burnt font-medium">{item.avgEng.toLocaleString()} avg eng</span>
+                {showAvgEng && (
+                  <span className="text-[10px] text-burnt font-medium">{item.avgEng.toLocaleString()} avg eng</span>
+                )}
               </div>
             </div>
           ))}
+          {postsWithHashtags < posts.length && (
+            <div className="pt-2 border-t border-armadillo-border/50">
+              <span className="text-[10px] text-armadillo-muted">
+                {postsWithHashtags} of {posts.length} posts use hashtags
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>
