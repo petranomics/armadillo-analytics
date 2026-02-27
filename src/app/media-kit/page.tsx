@@ -193,13 +193,13 @@ export default function MediaKitPage() {
             </div>
             <div
               ref={previewRef}
-              className="rounded-xl shadow-2xl overflow-hidden"
+              className="rounded-xl shadow-2xl overflow-hidden border border-armadillo-border"
               style={{ aspectRatio: '8.5/11' }}
             >
               <OneSheet mediaKit={mediaKit} />
             </div>
             <p className="text-[9px] text-armadillo-muted mt-2 text-center">
-              This is how your media kit will look as a PDF
+              Your media kit preview &mdash; updates in real time as you edit
             </p>
           </div>
         </div>

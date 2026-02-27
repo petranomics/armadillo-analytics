@@ -9,6 +9,18 @@ import { mockHashtagStats, mockRedditTrends, mockTikTokTrends } from '@/lib/tren
 import type { HashtagStats, RedditTrend, TikTokTrend } from '@/lib/types';
 import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, Sparkles, Lock, ChevronDown, ChevronUp, RefreshCw, Loader2, Clock, Film, Image } from 'lucide-react';
 
+interface AISection {
+  icon: string;
+  title: string;
+  body?: string | null;
+  bullets?: string[];
+}
+
+interface AIAnalysisData {
+  generatedAt: string;
+  sections: AISection[];
+}
+
 function formatNumber(n: number): string {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
@@ -41,6 +53,11 @@ export default function InsightsPage() {
     const [tiktokTrends, setTiktokTrends] = useState<TikTokTrend[] | null>(null);
     const [trendsLoading, setTrendsLoading] = useState(false);
     const [trendsError, setTrendsError] = useState<string | null>(null);
+
+  // AI analysis state
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisData | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
         const p = getUserProfile();
@@ -148,6 +165,42 @@ export default function InsightsPage() {
         }
   }, [profile]);
 
+  // Fetch AI-powered insights from Claude
+  const fetchAIInsights = useCallback(async (postData: LivePosts[]) => {
+    if (!profile) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          posts: postData,
+          platform: profile.selectedPlatforms[0],
+          username: profile.platformUsernames[profile.selectedPlatforms[0]] || 'unknown',
+          followers: undefined,
+          userType: profile.userType,
+          niche: profile.tiktokNiche || undefined,
+          trends: {
+            hashtagStats: hashtagStats || mockHashtagStats,
+            redditTrends: redditTrends || mockRedditTrends,
+            tiktokTrends: tiktokTrends || mockTikTokTrends,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to generate insights');
+      setAiAnalysis(json);
+    } catch (err) {
+      console.error('AI insights error:', err);
+      setAiError(err instanceof Error ? err.message : 'Failed to generate insights');
+      // Fall back to static analysis
+      setAiAnalysis(getAIAnalysis() as AIAnalysisData);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [profile, hashtagStats, redditTrends, tiktokTrends]);
+
   // Auto-fetch on mount
   useEffect(() => {
         if (loaded && profile) {
@@ -159,7 +212,8 @@ export default function InsightsPage() {
   if (!loaded || !profile) return null;
 
   const isPro = profile.plan === 'pro';
-    const aiAnalysis = getAIAnalysis();
+  const staticAnalysis = getAIAnalysis() as AIAnalysisData;
+  const displayAnalysis = aiAnalysis || staticAnalysis;
 
   // Use live posts or fallback
   const fallbackPosts: LivePosts[] = [
@@ -215,20 +269,51 @@ export default function InsightsPage() {
           {activeTab === 'ai' && isPro && (
                   <div className="space-y-4">
                             <div className="bg-gradient-to-r from-burnt/20 to-burnt/5 border border-burnt/30 rounded-2xl p-6">
-                                        <div className="flex items-center gap-3 mb-2">
-                                                      <div className="w-10 h-10 rounded-xl bg-burnt/20 flex items-center justify-center">
-                                                                      <Sparkles size={20} className="text-burnt" />
+                                        <div className="flex items-center justify-between">
+                                                      <div className="flex items-center gap-3">
+                                                                      <div className="w-10 h-10 rounded-xl bg-burnt/20 flex items-center justify-center">
+                                                                                      <Sparkles size={20} className="text-burnt" />
+                                                                      </div>
+                                                                      <div>
+                                                                                      <h2 className="font-display text-xl text-armadillo-text font-semibold">AI Analytics Writeup</h2>
+                                                                                      <p className="text-xs text-armadillo-muted">
+                                                                                        {aiAnalysis
+                                                                                          ? `Generated ${displayAnalysis.generatedAt} — powered by your data + market trends`
+                                                                                          : 'Analyze your content performance with AI-powered insights'}
+                                                                                      </p>
+                                                                      </div>
                                                       </div>
-                                                      <div>
-                                                                      <h2 className="font-display text-xl text-armadillo-text font-semibold">AI Analytics Writeup</h2>
-                                                                      <p className="text-xs text-armadillo-muted">
-                                                                                        Generated {aiAnalysis.generatedAt} based on your last 30 days of data
-                                                                      </p>
-                                                      </div>
+                                                      <button
+                                                        onClick={() => fetchAIInsights(posts)}
+                                                        disabled={aiLoading}
+                                                        className="flex items-center gap-2 bg-burnt hover:bg-burnt-light disabled:opacity-60 text-white px-4 py-2.5 rounded-xl text-xs font-medium transition-colors shrink-0"
+                                                      >
+                                                        {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                                        {aiLoading ? 'Analyzing...' : aiAnalysis ? 'Regenerate' : 'Generate Insights'}
+                                                      </button>
                                         </div>
                             </div>
-                  
-                    {aiAnalysis.sections.map((section, i) => (
+
+                    {/* Loading state */}
+                    {aiLoading && (
+                      <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
+                        <Loader2 size={32} className="text-burnt animate-spin mx-auto mb-4" />
+                        <h3 className="font-display text-lg text-armadillo-text mb-2">Analyzing your content</h3>
+                        <p className="text-sm text-armadillo-muted max-w-md mx-auto">
+                          Cross-referencing your posts with internet trends, platform data, and industry benchmarks...
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Error state */}
+                    {aiError && !aiLoading && (
+                      <div className="bg-danger/10 border border-danger/20 rounded-xl p-4 text-sm text-danger">
+                        {aiError} — showing cached analysis below.
+                      </div>
+                    )}
+
+                    {/* Sections */}
+                    {!aiLoading && displayAnalysis.sections.map((section, i) => (
                                 <div key={i} className="bg-armadillo-card border border-armadillo-border rounded-xl overflow-hidden">
                                               <button
                                                                 onClick={() => setExpandedSection(expandedSection === i ? null : i)}
@@ -261,12 +346,14 @@ export default function InsightsPage() {
                                               )}
                                 </div>
                               ))}
+                    {!aiLoading && (
                             <button
                                           onClick={() => setExpandedSection(expandedSection !== null ? null : 0)}
                                           className="w-full text-center text-xs text-burnt font-medium py-2"
                                         >
                               {expandedSection !== null ? 'Collapse all' : 'Expand all sections'}
                             </button>
+                    )}
                   </div>
               )}
         
