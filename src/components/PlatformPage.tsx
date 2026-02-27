@@ -14,7 +14,7 @@ import BestTimeCard from '@/components/cards/BestTimeCard';
 import CollabTrackerCard from '@/components/cards/CollabTrackerCard';
 import AudioInsightsCard from '@/components/cards/AudioInsightsCard';
 import DataTable from '@/components/ui/DataTable';
-import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database } from 'lucide-react';
+import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database, ExternalLink, Calendar, Download } from 'lucide-react';
 
 // Metrics that are NOT available from public scraping per platform
 const UNAVAILABLE_METRICS: Record<string, string[]> = {
@@ -162,21 +162,63 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
         const totalComments = posts.reduce((sum, p) => sum + p.metrics.comments, 0);
         const totalShares = posts.reduce((sum, p) => sum + (p.metrics.shares || 0), 0);
         const totalSaves = posts.reduce((sum, p) => sum + (p.metrics.saves || 0), 0);
+        const totalViews = posts.reduce((sum, p) => sum + (p.metrics.views || 0), 0);
+        const avgViewsPerPost = posts.length > 0 && totalViews > 0 ? Math.round(totalViews / posts.length) : 0;
+
+    // Posting frequency
+    const postDates = posts.map(p => new Date(p.publishedAt).getTime()).filter(t => !isNaN(t)).sort((a, b) => a - b);
+    let postingFreq = '';
+    if (postDates.length >= 2) {
+        const rangeDays = (postDates[postDates.length - 1] - postDates[0]) / (1000 * 60 * 60 * 24);
+        if (rangeDays > 0) {
+            const perWeek = (posts.length / rangeDays) * 7;
+            postingFreq = `~${perWeek.toFixed(1)}/week`;
+        }
+    }
+
+    // Export data saver — stores current analytics snapshot for the export page
+    const handleExportData = () => {
+        const exportPayload = {
+            profile,
+            posts,
+            summary,
+            computedMetrics: {
+                totalLikes,
+                totalComments,
+                totalShares,
+                totalViews,
+                avgViewsPerPost,
+                postingFreq,
+                avgEngagementRate: summary.avgEngagementRate,
+            },
+            exportedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('armadillo-export-data', JSON.stringify(exportPayload));
+        window.location.href = '/export';
+    };
 
     return (
                 <div className="max-w-7xl mx-auto">
                     {/* Profile Header */}
                             <div className="flex items-start justify-between mb-8">
                                             <div className="flex items-center gap-4">
-                                                                <div
-                                                                                            className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-display font-bold"
-                                                                                            style={{
-                                                                                                                            backgroundColor: `var(--color-platform-${profile.platform})`,
-                                                                                                                            color: profile.platform === 'tiktok' ? '#000' : '#fff'
-                                                                                                }}
-                                                                                        >
-                                                                    {profile.displayName.charAt(0)}
-                                                                </div>
+                                                                {profile.avatarUrlHD ? (
+                                                                    <img
+                                                                        src={profile.avatarUrlHD}
+                                                                        alt={profile.displayName}
+                                                                        className="w-14 h-14 rounded-full object-cover border-2 border-armadillo-border"
+                                                                    />
+                                                                ) : (
+                                                                    <div
+                                                                        className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-display font-bold"
+                                                                        style={{
+                                                                            backgroundColor: `var(--color-platform-${profile.platform})`,
+                                                                            color: profile.platform === 'tiktok' ? '#000' : '#fff'
+                                                                        }}
+                                                                    >
+                                                                        {profile.displayName.charAt(0)}
+                                                                    </div>
+                                                                )}
                                                                 <div>
                                                                                         <div className="flex items-center gap-2">
                                                                                                                     <h1 className="font-display text-2xl text-armadillo-text">{profile.displayName}</h1>
@@ -191,9 +233,21 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                                             {profile.verified && (
                                                     <span className="text-[10px] bg-success/20 text-success px-2 py-0.5 rounded">Verified</span>
                                                                                                                     )}
+                                                                                            {profile.isBusinessAccount && (
+                                                    <span className="text-[10px] bg-burnt/10 text-burnt px-2 py-0.5 rounded">Business</span>
+                                                                                                                    )}
                                                                                             </div>
                                                                                         <p className="text-sm text-armadillo-muted">@{profile.username}</p>
+                                                                    {profile.businessCategory && (
+                                                                        <p className="text-[10px] text-armadillo-muted mt-0.5">{profile.businessCategory}</p>
+                                                                    )}
                                                                     {profile.bio && <p className="text-xs text-armadillo-muted mt-1 max-w-lg">{profile.bio}</p>}
+                                                                    {profile.externalUrl && (
+                                                                        <a href={profile.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-burnt hover:text-burnt-light mt-1">
+                                                                            <ExternalLink size={10} />
+                                                                            {profile.externalUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                                                        </a>
+                                                                    )}
                                                                 </div>
                                             </div>
 
@@ -234,6 +288,13 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                                                         Configure in Settings
                                             </a>
                                                                 )}
+                                            <button
+                                                onClick={handleExportData}
+                                                className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-text px-4 py-2 rounded-lg text-xs font-medium hover:border-burnt/50 transition-colors"
+                                            >
+                                                <Download size={14} />
+                                                Export Report
+                                            </button>
                                             </div>
                             </div>
 
@@ -264,6 +325,12 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                     )}
                                 {posts.length > 0 && (
                                         <KpiCard label="Avg. Comments/Post" value={formatNumber(Math.round(totalComments / posts.length))} icon={<MessageCircle size={14} />} />
+                                    )}
+                                {avgViewsPerPost > 0 && (
+                                        <KpiCard label="Avg. Views/Post" value={formatNumber(avgViewsPerPost)} trendLabel={profile.followers > 0 ? `${Math.round((avgViewsPerPost / profile.followers) * 100)}% of followers` : undefined} icon={<Eye size={14} />} />
+                                    )}
+                                {postingFreq && (
+                                        <KpiCard label="Post Frequency" value={postingFreq} icon={<Calendar size={14} />} />
                                     )}
                                 {!UNAVAILABLE_METRICS[platform]?.includes('shares') && totalShares > 0 && (
                                         <KpiCard label="Total Shares" value={formatNumber(totalShares)} icon={<Bookmark size={14} />} />

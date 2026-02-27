@@ -5,23 +5,14 @@ import { useRouter } from 'next/navigation';
 import { getUserProfile, type UserProfile } from '@/lib/store';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import { getAIAnalysis } from '@/lib/ai-insights';
-import { mockHashtagStats, mockHashtagPosts, mockRedditTrends, mockTikTokTrends } from '@/lib/trend-data';
-import type { HashtagStats, HashtagPost, RedditTrend, TikTokTrend } from '@/lib/types';
-import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, ArrowUpRight, Sparkles, Lock, ChevronDown, ChevronUp, RefreshCw, Loader2, Hash } from 'lucide-react';
+import { mockHashtagStats, mockRedditTrends, mockTikTokTrends } from '@/lib/trend-data';
+import type { HashtagStats, RedditTrend, TikTokTrend } from '@/lib/types';
+import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, Sparkles, Lock, ChevronDown, ChevronUp, RefreshCw, Loader2, Clock, Film, Image } from 'lucide-react';
 
 function formatNumber(n: number): string {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
     return n.toString();
-}
-
-function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const hours = Math.floor(diff / 3600000);
-    if (hours < 1) return 'just now';
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
 }
 
 interface LivePosts {
@@ -46,7 +37,6 @@ export default function InsightsPage() {
   const [livePosts, setLivePosts] = useState<LivePosts[] | null>(null);
     const [postsLoading, setPostsLoading] = useState(false);
     const [hashtagStats, setHashtagStats] = useState<HashtagStats[] | null>(null);
-    const [hashtagPosts, setHashtagPosts] = useState<HashtagPost[] | null>(null);
     const [redditTrends, setRedditTrends] = useState<RedditTrend[] | null>(null);
     const [tiktokTrends, setTiktokTrends] = useState<TikTokTrend[] | null>(null);
     const [trendsLoading, setTrendsLoading] = useState(false);
@@ -118,16 +108,11 @@ export default function InsightsPage() {
                   ? profile.trackedSubreddits.map(s => s.startsWith('http') ? s : `https://old.reddit.com/r/${s}/`)
                           : ['https://old.reddit.com/r/popular/'];
 
-          const [statsRes, postsRes, redditRes, tiktokRes] = await Promise.allSettled([
+          const [statsRes, redditRes, tiktokRes] = await Promise.allSettled([
                     fetch('/api/trends', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ source: 'instagramHashtags', params: { keywords: trackedHashtags } }),
-                    }).then(r => r.json()),
-                    fetch('/api/trends', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ source: 'instagramHashtagPosts', params: { hashtags: trackedHashtags.slice(0, 3), limit: 20 } }),
                     }).then(r => r.json()),
                     fetch('/api/trends', {
                                 method: 'POST',
@@ -145,10 +130,6 @@ export default function InsightsPage() {
                     statsRes.status === 'fulfilled' && statsRes.value.hashtagStats?.length
                       ? statsRes.value.hashtagStats : mockHashtagStats
                   );
-                setHashtagPosts(
-                          postsRes.status === 'fulfilled' && postsRes.value.hashtagPosts?.length
-                            ? postsRes.value.hashtagPosts : mockHashtagPosts
-                        );
                 setRedditTrends(
                           redditRes.status === 'fulfilled' && redditRes.value.redditTrends?.length
                             ? redditRes.value.redditTrends : mockRedditTrends
@@ -159,7 +140,6 @@ export default function InsightsPage() {
                         );
         } catch {
                 setHashtagStats(mockHashtagStats);
-                setHashtagPosts(mockHashtagPosts);
                 setRedditTrends(mockRedditTrends);
                 setTiktokTrends(mockTikTokTrends);
                 setTrendsError('Could not fetch live trends, showing cached data');
@@ -214,12 +194,13 @@ export default function InsightsPage() {
                 {tabs.map((tab) => (
                     <button
                                   key={tab.key}
-                                  onClick={() => !tab.locked && setActiveTab(tab.key)}
+                                  onClick={() => tab.locked ? router.push('/settings') : setActiveTab(tab.key)}
+                                  title={tab.locked ? 'Upgrade to Pro to unlock' : undefined}
                                   className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
                                                   activeTab === tab.key
                                                     ? 'bg-burnt text-white'
                                                     : tab.locked
-                                                    ? 'text-armadillo-muted/50 cursor-not-allowed'
+                                                    ? 'text-armadillo-muted/50 hover:text-armadillo-muted hover:bg-armadillo-border/20 cursor-pointer'
                                                     : 'text-armadillo-muted hover:text-armadillo-text'
                                   }`}
                                 >
@@ -420,29 +401,143 @@ export default function InsightsPage() {
                                 </div>
                             )}
                   
-                    {/* Trending Posts */}
-                    {(hashtagPosts || mockHashtagPosts).length > 0 && (
-                                <div>
-                                              <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Trending Posts</h3>
-                                              <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-5">
-                                                              <div className="space-y-3">
-                                                                {(hashtagPosts || mockHashtagPosts).slice(0, 6).map(post => (
-                                                      <div key={post.id} className="bg-armadillo-bg rounded-lg p-3.5">
-                                                                            <div className="flex items-center justify-between mb-1.5">
-                                                                                                    <span className="text-[10px] bg-burnt/15 text-burnt px-2 py-0.5 rounded">#{post.hashtag}</span>
-                                                                                                    <span className="text-[10px] text-armadillo-muted">{timeAgo(post.publishedAt)}</span>
-                                                                            </div>
-                                                                            <p className="text-xs text-armadillo-text leading-relaxed mb-2 line-clamp-2">{post.caption}</p>
-                                                                            <div className="flex items-center gap-4 text-armadillo-muted">
-                                                                                                    <span className="flex items-center gap-1 text-[11px]"><Heart size={11} />{formatNumber(post.likes)}</span>
-                                                                                                    <span className="flex items-center gap-1 text-[11px]"><MessageCircle size={11} />{formatNumber(post.comments)}</span>
-                                                                            </div>
-                                                      </div>
-                                                    ))}
-                                                              </div>
-                                              </div>
+                    {/* Content Performance Analysis */}
+                    {posts.length > 0 && (() => {
+                      // Compute best posting times from user's own data
+                      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                      const hourBuckets: Record<number, { totalEng: number; count: number }> = {};
+                      const dayBuckets: Record<number, { totalEng: number; count: number }> = {};
+                      const formatBuckets: Record<string, { totalEng: number; count: number; totalLikes: number; totalComments: number }> = {};
+
+                      for (const post of posts) {
+                        // Determine content format from caption heuristics
+                        const captionLower = post.caption.toLowerCase();
+                        let format = 'Image';
+                        if (post.views > 0 || captionLower.includes('reel') || captionLower.includes('video') || captionLower.includes('pov')) format = 'Video/Reel';
+                        else if (captionLower.includes('thread') || captionLower.includes('ranked') || captionLower.includes('guide') || captionLower.includes('rating')) format = 'Carousel/Thread';
+
+                        if (!formatBuckets[format]) formatBuckets[format] = { totalEng: 0, count: 0, totalLikes: 0, totalComments: 0 };
+                        formatBuckets[format].totalEng += post.engagement;
+                        formatBuckets[format].count += 1;
+                        formatBuckets[format].totalLikes += post.likes;
+                        formatBuckets[format].totalComments += post.comments;
+
+                        // Time analysis from daysAgo (approximate day-of-week)
+                        const postDate = new Date(Date.now() - post.daysAgo * 86400000);
+                        const day = postDate.getDay();
+                        const hour = 12 + (post.id % 12); // approximate since we don't have exact hours from fallback
+                        if (!dayBuckets[day]) dayBuckets[day] = { totalEng: 0, count: 0 };
+                        dayBuckets[day].totalEng += post.engagement;
+                        dayBuckets[day].count += 1;
+                        if (!hourBuckets[hour]) hourBuckets[hour] = { totalEng: 0, count: 0 };
+                        hourBuckets[hour].totalEng += post.engagement;
+                        hourBuckets[hour].count += 1;
+                      }
+
+                      const bestDay = Object.entries(dayBuckets)
+                        .map(([d, v]) => ({ day: Number(d), avgEng: v.totalEng / v.count, count: v.count }))
+                        .sort((a, b) => b.avgEng - a.avgEng)[0];
+
+                      const formats = Object.entries(formatBuckets)
+                        .map(([name, v]) => ({ name, avgEng: parseFloat((v.totalEng / v.count).toFixed(1)), count: v.count, totalLikes: v.totalLikes, totalComments: v.totalComments }))
+                        .sort((a, b) => b.avgEng - a.avgEng);
+
+                      const avgCaptionLength = Math.round(posts.reduce((s, p) => s + p.caption.length, 0) / posts.length);
+                      const shortCaptions = posts.filter(p => p.caption.length < 60);
+                      const longCaptions = posts.filter(p => p.caption.length >= 60);
+                      const shortAvgEng = shortCaptions.length > 0 ? parseFloat((shortCaptions.reduce((s, p) => s + p.engagement, 0) / shortCaptions.length).toFixed(1)) : 0;
+                      const longAvgEng = longCaptions.length > 0 ? parseFloat((longCaptions.reduce((s, p) => s + p.engagement, 0) / longCaptions.length).toFixed(1)) : 0;
+
+                      return (
+                        <div>
+                          <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Your Content Performance</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Best Posting Day */}
+                            {bestDay && (
+                              <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Clock size={14} className="text-burnt" />
+                                  <span className="text-sm font-medium text-armadillo-text">Best Posting Day</span>
                                 </div>
+                                <div className="text-2xl font-display text-burnt mb-1">{dayNames[bestDay.day]}</div>
+                                <p className="text-xs text-armadillo-muted">{bestDay.avgEng.toFixed(1)}% avg engagement ({bestDay.count} posts)</p>
+                                <div className="flex gap-1 mt-3">
+                                  {dayNames.map((name, i) => {
+                                    const bucket = dayBuckets[i];
+                                    const pct = bucket ? Math.round((bucket.totalEng / bucket.count / (bestDay.avgEng || 1)) * 100) : 0;
+                                    return (
+                                      <div key={name} className="flex-1 flex flex-col items-center gap-1">
+                                        <div className="w-full bg-armadillo-bg rounded-sm overflow-hidden h-12 flex items-end">
+                                          <div className={`w-full rounded-t-sm ${i === bestDay.day ? 'bg-burnt' : 'bg-armadillo-border'}`} style={{ height: `${Math.max(pct, 5)}%` }} />
+                                        </div>
+                                        <span className="text-[8px] text-armadillo-muted">{name}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
                             )}
+
+                            {/* Content Format Breakdown */}
+                            <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Film size={14} className="text-burnt" />
+                                <span className="text-sm font-medium text-armadillo-text">Format Performance</span>
+                              </div>
+                              <div className="space-y-3">
+                                {formats.map((fmt, i) => (
+                                  <div key={fmt.name}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="flex items-center gap-2">
+                                        {fmt.name.includes('Video') ? <Film size={12} className="text-armadillo-muted" /> : <Image size={12} className="text-armadillo-muted" />}
+                                        <span className="text-xs text-armadillo-text">{fmt.name}</span>
+                                        <span className="text-[10px] text-armadillo-muted">({fmt.count} posts)</span>
+                                      </div>
+                                      <span className={`text-xs font-medium ${i === 0 ? 'text-success' : 'text-armadillo-muted'}`}>{fmt.avgEng}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-armadillo-bg rounded-full overflow-hidden">
+                                      <div className={`h-full rounded-full ${i === 0 ? 'bg-success' : 'bg-armadillo-border'}`} style={{ width: `${Math.round((fmt.avgEng / (formats[0]?.avgEng || 1)) * 100)}%` }} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Caption Length Impact */}
+                            <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-4 md:col-span-2">
+                              <div className="flex items-center gap-2 mb-3">
+                                <MessageCircle size={14} className="text-burnt" />
+                                <span className="text-sm font-medium text-armadillo-text">Caption Length Impact</span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-armadillo-bg rounded-lg p-3 text-center">
+                                  <div className="text-[10px] text-armadillo-muted mb-1">Avg Caption</div>
+                                  <div className="text-lg font-display text-armadillo-text">{avgCaptionLength}</div>
+                                  <div className="text-[10px] text-armadillo-muted">characters</div>
+                                </div>
+                                <div className="bg-armadillo-bg rounded-lg p-3 text-center">
+                                  <div className="text-[10px] text-armadillo-muted mb-1">Short (&lt;60 chars)</div>
+                                  <div className={`text-lg font-display ${shortAvgEng >= longAvgEng ? 'text-success' : 'text-armadillo-text'}`}>{shortAvgEng}%</div>
+                                  <div className="text-[10px] text-armadillo-muted">{shortCaptions.length} posts</div>
+                                </div>
+                                <div className="bg-armadillo-bg rounded-lg p-3 text-center">
+                                  <div className="text-[10px] text-armadillo-muted mb-1">Long (60+ chars)</div>
+                                  <div className={`text-lg font-display ${longAvgEng > shortAvgEng ? 'text-success' : 'text-armadillo-text'}`}>{longAvgEng}%</div>
+                                  <div className="text-[10px] text-armadillo-muted">{longCaptions.length} posts</div>
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-armadillo-muted mt-2">
+                                {longAvgEng > shortAvgEng
+                                  ? `Longer captions outperform by ${(longAvgEng - shortAvgEng).toFixed(1)} pts — your audience engages more with detailed content.`
+                                  : shortAvgEng > longAvgEng
+                                  ? `Short captions outperform by ${(shortAvgEng - longAvgEng).toFixed(1)} pts — keep it punchy for better engagement.`
+                                  : 'Caption length has minimal impact on your engagement — experiment freely.'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   
                     {/* Reddit Trends */}
                     {(redditTrends || mockRedditTrends).length > 0 && (

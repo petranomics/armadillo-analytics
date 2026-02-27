@@ -43,6 +43,14 @@ export default function DashboardPage() {
                 return;
         }
         setProfile(p);
+        // Restore cached live metrics so navigating back doesn't reset to mock
+        try {
+                const cached = localStorage.getItem('armadillo-dashboard-metrics');
+                if (cached) {
+                        setLiveMetrics(JSON.parse(cached));
+                        setIsLive(true);
+                }
+        } catch { /* ignore */ }
         setLoaded(true);
   }, [router]);
 
@@ -81,7 +89,7 @@ export default function DashboardPage() {
           const totalEng = totalLikes + totalComments + totalShares;
                 const engagementRate = followers > 0 ? parseFloat(((totalEng / (followers * results.length)) * 100).toFixed(1)) : 0;
 
-          setLiveMetrics({
+          const metrics = {
                     totalLikes,
                     totalComments,
                     totalShares,
@@ -91,8 +99,11 @@ export default function DashboardPage() {
                     engagementRate,
                     followerGrowth: followers,
                     postCount: results.length,
-          });
+          };
+          setLiveMetrics(metrics);
                 setIsLive(true);
+                // Cache so navigating away and back retains live data
+                try { localStorage.setItem('armadillo-dashboard-metrics', JSON.stringify(metrics)); } catch { /* ignore */ }
         } catch {
                 // Silently fall back to mock data
         } finally {

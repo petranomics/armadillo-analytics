@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Settings, BarChart3, Sparkles, Share2 } from 'lucide-react';
+import { LayoutDashboard, Settings, BarChart3, Sparkles, Share2, FileText } from 'lucide-react';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import { getUserProfile, type UserProfile } from '@/lib/store';
 import type { Platform } from '@/lib/types';
@@ -122,6 +122,17 @@ export default function Sidebar() {
         >
           <Sparkles size={16} />
           <span>Customize</span>
+        </Link>
+        <Link
+          href="/media-kit"
+          className={`flex items-center gap-3 px-5 py-2.5 text-sm transition-colors ${
+            pathname === '/media-kit'
+              ? 'text-burnt bg-burnt/10 border-r-2 border-burnt'
+              : 'text-armadillo-muted hover:text-armadillo-text hover:bg-armadillo-border/30'
+          }`}
+        >
+          <FileText size={16} />
+          <span>Media Kit</span>
         </Link>
         <Link
           href="/export"
