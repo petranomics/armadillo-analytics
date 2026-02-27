@@ -40,9 +40,11 @@ export interface MediaKitData {
   // Photos
   headerPhotoUrl: string;
   galleryPhotoUrls: string[];
+  uploadedPhotos: string[]; // data URLs from file uploads
 
   // Stats
   stats: MediaKitStats;
+  selectedStatKeys: (keyof MediaKitStats)[]; // user-chosen metrics for one-sheet
 
   // Offerings
   offerings: MediaKitOffering[];
@@ -223,6 +225,7 @@ const DEFAULT_MEDIA_KIT: MediaKitData = {
   brandCollaborations: [],
   headerPhotoUrl: '',
   galleryPhotoUrls: [],
+  uploadedPhotos: [],
   stats: {
     followers: 0,
     engagementRate: 0,
@@ -233,6 +236,7 @@ const DEFAULT_MEDIA_KIT: MediaKitData = {
     totalPosts: 0,
     postingFreq: '',
   },
+  selectedStatKeys: [],
   offerings: [],
   username: '',
   platform: 'instagram',
@@ -312,6 +316,18 @@ export function populateFromExportData(
     offerings: existing.offerings.length > 0 ? existing.offerings : DEFAULT_OFFERINGS[userType],
   };
 }
+
+// All possible stats a user can toggle on/off for their one-sheet
+export const ALL_STAT_OPTIONS: { key: keyof MediaKitStats; label: string }[] = [
+  { key: 'followers', label: 'Followers' },
+  { key: 'engagementRate', label: 'Engagement Rate' },
+  { key: 'totalLikes', label: 'Total Likes' },
+  { key: 'totalComments', label: 'Total Comments' },
+  { key: 'totalViews', label: 'Total Views' },
+  { key: 'avgViewsPerPost', label: 'Avg Views / Post' },
+  { key: 'totalPosts', label: 'Total Posts' },
+  { key: 'postingFreq', label: 'Posting Frequency' },
+];
 
 export function formatStatValue(key: keyof MediaKitStats, value: string | number): string {
   if (key === 'engagementRate') return `${value}%`;

@@ -1,10 +1,10 @@
 'use client';
 
-import type { MediaKitData, MediaKitOffering } from '@/lib/media-kit';
-import { INDUSTRY_FIELD_MAP, getIndustryOptions, ONE_SHEET_CONFIG } from '@/lib/media-kit';
+import type { MediaKitData, MediaKitOffering, MediaKitStats } from '@/lib/media-kit';
+import { INDUSTRY_FIELD_MAP, getIndustryOptions, ONE_SHEET_CONFIG, ALL_STAT_OPTIONS } from '@/lib/media-kit';
 import PhotoPicker from './PhotoPicker';
 import OfferingsEditor from './OfferingsEditor';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Check } from 'lucide-react';
 
 interface MediaKitFormProps {
   mediaKit: MediaKitData;
@@ -18,6 +18,23 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
   const industryMapping = INDUSTRY_FIELD_MAP[mediaKit.userType];
   const industryOptions = getIndustryOptions(mediaKit.userType);
   const config = ONE_SHEET_CONFIG[mediaKit.userType];
+
+  // Determine active stat keys — use user selection if set, else config defaults
+  const activeStatKeys: (keyof MediaKitStats)[] =
+    mediaKit.selectedStatKeys.length > 0
+      ? mediaKit.selectedStatKeys
+      : config.statKeys.map(s => s.key);
+
+  const toggleStatKey = (key: keyof MediaKitStats) => {
+    const current = [...activeStatKeys];
+    const idx = current.indexOf(key);
+    if (idx >= 0) {
+      current.splice(idx, 1);
+    } else {
+      current.push(key);
+    }
+    onChange({ selectedStatKeys: current });
+  };
 
   const addTopic = (value: string) => {
     const topic = value.trim();
@@ -128,6 +145,34 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
         </div>
       </Section>
 
+      {/* Metrics Checklist */}
+      <Section title="Metrics to Display">
+        <p className="text-[10px] text-armadillo-muted mb-3">Choose which stats appear on your one-sheet</p>
+        <div className="grid grid-cols-2 gap-2">
+          {ALL_STAT_OPTIONS.map(({ key, label }) => {
+            const isActive = activeStatKeys.includes(key);
+            return (
+              <button
+                key={key}
+                onClick={() => toggleStatKey(key)}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs text-left transition-all ${
+                  isActive
+                    ? 'bg-burnt/10 border border-burnt/30 text-armadillo-text'
+                    : 'bg-armadillo-bg border border-armadillo-border text-armadillo-muted hover:border-armadillo-muted'
+                }`}
+              >
+                <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${
+                  isActive ? 'bg-burnt' : 'bg-armadillo-bg border border-armadillo-border'
+                }`}>
+                  {isActive && <Check size={10} className="text-white" />}
+                </div>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </Section>
+
       {/* Content Topics */}
       <Section title="Content Topics">
         <TagInput
@@ -156,6 +201,7 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
       <Section title="Photos">
         <PhotoPicker
           availablePhotos={availablePhotos}
+          uploadedPhotos={mediaKit.uploadedPhotos}
           headerPhotoUrl={mediaKit.headerPhotoUrl}
           galleryPhotoUrls={mediaKit.galleryPhotoUrls}
           onSetHeaderPhoto={(url) => onChange({ headerPhotoUrl: url })}
@@ -166,6 +212,18 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
             } else if (current.length < 6) {
               onChange({ galleryPhotoUrls: [...current, url] });
             }
+          }}
+          onUploadPhotos={(dataUrls) => {
+            const existing = mediaKit.uploadedPhotos;
+            const newPhotos = dataUrls.filter(d => !existing.includes(d));
+            onChange({ uploadedPhotos: [...existing, ...newPhotos] });
+          }}
+          onRemoveUploadedPhoto={(dataUrl) => {
+            onChange({
+              uploadedPhotos: mediaKit.uploadedPhotos.filter(u => u !== dataUrl),
+              headerPhotoUrl: mediaKit.headerPhotoUrl === dataUrl ? '' : mediaKit.headerPhotoUrl,
+              galleryPhotoUrls: mediaKit.galleryPhotoUrls.filter(u => u !== dataUrl),
+            });
           }}
         />
       </Section>
