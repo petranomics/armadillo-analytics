@@ -20,9 +20,10 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
   const config = ONE_SHEET_CONFIG[mediaKit.userType];
 
   // Determine active stat keys — use user selection if set, else config defaults
+  const selected = mediaKit.selectedStatKeys ?? [];
   const activeStatKeys: (keyof MediaKitStats)[] =
-    mediaKit.selectedStatKeys.length > 0
-      ? mediaKit.selectedStatKeys
+    selected.length > 0
+      ? selected
       : config.statKeys.map(s => s.key);
 
   const toggleStatKey = (key: keyof MediaKitStats) => {
@@ -201,7 +202,7 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
       <Section title="Photos">
         <PhotoPicker
           availablePhotos={availablePhotos}
-          uploadedPhotos={mediaKit.uploadedPhotos}
+          uploadedPhotos={mediaKit.uploadedPhotos ?? []}
           headerPhotoUrl={mediaKit.headerPhotoUrl}
           galleryPhotoUrls={mediaKit.galleryPhotoUrls}
           onSetHeaderPhoto={(url) => onChange({ headerPhotoUrl: url })}
@@ -214,13 +215,13 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
             }
           }}
           onUploadPhotos={(dataUrls) => {
-            const existing = mediaKit.uploadedPhotos;
+            const existing = mediaKit.uploadedPhotos ?? [];
             const newPhotos = dataUrls.filter(d => !existing.includes(d));
             onChange({ uploadedPhotos: [...existing, ...newPhotos] });
           }}
           onRemoveUploadedPhoto={(dataUrl) => {
             onChange({
-              uploadedPhotos: mediaKit.uploadedPhotos.filter(u => u !== dataUrl),
+              uploadedPhotos: (mediaKit.uploadedPhotos ?? []).filter(u => u !== dataUrl),
               headerPhotoUrl: mediaKit.headerPhotoUrl === dataUrl ? '' : mediaKit.headerPhotoUrl,
               galleryPhotoUrls: mediaKit.galleryPhotoUrls.filter(u => u !== dataUrl),
             });

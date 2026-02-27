@@ -28,12 +28,13 @@ export default function OneSheet({ mediaKit }: OneSheetProps) {
   const hasOfferings = mediaKit.offerings.some(o => o.name.trim());
 
   // Use selectedStatKeys if user has chosen, otherwise fall back to config defaults
+  const selected = mediaKit.selectedStatKeys ?? [];
   const statKeysToShow: (keyof MediaKitStats)[] =
-    mediaKit.selectedStatKeys.length > 0
-      ? mediaKit.selectedStatKeys
+    selected.length > 0
+      ? selected
       : config.statKeys.map(s => s.key);
 
-  const hasCustomSelection = mediaKit.selectedStatKeys.length > 0;
+  const hasCustomSelection = selected.length > 0;
 
   const visibleStats = statKeysToShow
     .map(key => {
