@@ -33,12 +33,17 @@ export default function OneSheet({ mediaKit }: OneSheetProps) {
       ? mediaKit.selectedStatKeys
       : config.statKeys.map(s => s.key);
 
+  const hasCustomSelection = mediaKit.selectedStatKeys.length > 0;
+
   const visibleStats = statKeysToShow
     .map(key => {
       const label = ALL_STAT_OPTIONS.find(o => o.key === key)?.label || key;
       return { key, label };
     })
     .filter(({ key }) => {
+      // If user explicitly selected metrics, always show them
+      if (hasCustomSelection) return true;
+      // Otherwise hide zero-value stats (except engagement rate)
       const val = mediaKit.stats[key];
       if (key === 'engagementRate') return true;
       if (key === 'postingFreq') return !!val;
