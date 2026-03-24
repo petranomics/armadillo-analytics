@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { mockPeakHours, mockPeakDays, mockHourlyHeatmap } from '@/lib/mock-data';
+import { useState, useMemo } from 'react';
+import type { Post } from '@/lib/types';
 
 function formatNumber(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
@@ -9,7 +9,6 @@ function formatNumber(n: number): string {
 }
 
 function intensityColor(value: number): string {
-  // Map 0-1 to transparent burnt orange -> full burnt orange
   if (value < 0.1) return 'rgba(191, 87, 0, 0.05)';
   if (value < 0.25) return 'rgba(191, 87, 0, 0.12)';
   if (value < 0.4) return 'rgba(191, 87, 0, 0.22)';
@@ -19,14 +18,83 @@ function intensityColor(value: number): string {
   return 'rgba(191, 87, 0, 0.88)';
 }
 
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_SHORTS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+function computeFromPosts(posts: Post[]) {
+  const hourEngagement = Array.from({ length: 24 }, () => 0);
+  const dayEngagement = Array.from({ length: 7 }, () => 0);
+  const heatmap: Record<string, number> = {};
+
+  for (const p of posts) {
+    const d = new Date(p.publishedAt);
+    if (isNaN(d.getTime())) continue;
+    const eng = p.metrics.likes + p.metrics.comments + (p.metrics.shares || 0);
+    const hour = d.getHours();
+    const day = d.getDay();
+    hourEngagement[hour] += eng;
+    dayEngagement[day] += eng;
+    heatmap[`${day}-${hour}`] = (heatmap[`${day}-${hour}`] || 0) + eng;
+  }
+
+  const maxHeatVal = Math.max(...Object.values(heatmap), 1);
+  const peakHoursData = hourEngagement.map((engagement, hour) => ({
+    hour,
+    label: hour === 0 ? '12a' : hour < 12 ? `${hour}a` : hour === 12 ? '12p' : `${hour - 12}p`,
+    engagement,
+  }));
+  const peakDaysData = dayEngagement.map((engagement, i) => ({
+    day: DAY_NAMES[i],
+    short: DAY_SHORTS[i],
+    engagement,
+  }));
+  const monFirst = [...peakDaysData.slice(1), peakDaysData[0]];
+  const heatmapData = [];
+  for (let di = 0; di < 7; di++) {
+    const jsDay = (di + 1) % 7;
+    for (let hour = 0; hour < 24; hour++) {
+      const val = heatmap[`${jsDay}-${hour}`] || 0;
+      heatmapData.push({
+        dayIndex: di,
+        day: DAY_NAMES[jsDay],
+        hour,
+        value: maxHeatVal > 0 ? val / maxHeatVal : 0,
+      });
+    }
+  }
+
+  return { peakHoursData, peakDaysData: monFirst, heatmapData };
+}
+
 type ViewMode = 'heatmap' | 'hours' | 'days';
 
-export default function PeakHours() {
+interface PeakHoursProps {
+  posts?: Post[];
+}
+
+export default function PeakHours({ posts }: PeakHoursProps) {
   const [view, setView] = useState<ViewMode>('heatmap');
   const [selectedCell, setSelectedCell] = useState<{ day: string; hour: number; value: number } | null>(null);
 
-  const peakHour = mockPeakHours.reduce((a, b) => a.engagement > b.engagement ? a : b);
-  const peakDay = mockPeakDays.reduce((a, b) => a.engagement > b.engagement ? a : b);
+  const computed = useMemo(() => posts && posts.length > 0 ? computeFromPosts(posts) : null, [posts]);
+
+  if (!computed) {
+    return (
+      <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
+        <h3 className="text-xs font-semibold text-armadillo-text uppercase tracking-wider mb-3">Peak Activity</h3>
+        <div className="flex items-center justify-center h-[180px] text-sm text-armadillo-muted">
+          No data yet — fetch your analytics to see this chart
+        </div>
+      </div>
+    );
+  }
+
+  const peakHoursData = computed.peakHoursData;
+  const peakDaysData = computed.peakDaysData;
+  const heatmapData = computed.heatmapData;
+
+  const peakHour = peakHoursData.reduce((a, b) => a.engagement > b.engagement ? a : b);
+  const peakDay = peakDaysData.reduce((a, b) => a.engagement > b.engagement ? a : b);
 
   return (
     <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
@@ -59,14 +127,13 @@ export default function PeakHours() {
         </div>
         <div className="flex-1 bg-armadillo-bg rounded-lg px-3 py-2">
           <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Peak Window</div>
-          <div className="text-sm font-display text-burnt">6-9pm</div>
+          <div className="text-sm font-display text-burnt">{peakHour.label}</div>
         </div>
       </div>
 
       {/* Heatmap View */}
       {view === 'heatmap' && (
         <div>
-          {/* Hour labels across top - show every 3rd hour */}
           <div className="flex ml-6 mb-0.5">
             {Array.from({ length: 8 }, (_, i) => i * 3).map(h => (
               <div key={h} className="text-[7px] text-armadillo-muted" style={{ width: `${100/8}%` }}>
@@ -74,12 +141,11 @@ export default function PeakHours() {
               </div>
             ))}
           </div>
-          {/* Grid rows per day */}
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, di) => (
             <div key={day} className="flex items-center gap-0.5 mb-0.5">
               <span className="text-[8px] text-armadillo-muted w-5 shrink-0 text-right">{day.slice(0, 2)}</span>
               <div className="flex-1 flex gap-px">
-                {mockHourlyHeatmap
+                {heatmapData
                   .filter(c => c.dayIndex === di)
                   .map(cell => (
                     <button
@@ -100,7 +166,6 @@ export default function PeakHours() {
               </div>
             </div>
           ))}
-          {/* Selected cell tooltip */}
           {selectedCell && (
             <div className="mt-2 bg-burnt/10 border border-burnt/20 rounded-lg px-3 py-2 text-center">
               <span className="text-[10px] text-armadillo-text">
@@ -112,7 +177,6 @@ export default function PeakHours() {
               </span>
             </div>
           )}
-          {/* Legend */}
           <div className="flex items-center justify-end gap-1 mt-2">
             <span className="text-[8px] text-armadillo-muted">Low</span>
             {[0.1, 0.3, 0.5, 0.7, 0.9].map(v => (
@@ -126,8 +190,8 @@ export default function PeakHours() {
       {/* Hours Bar View */}
       {view === 'hours' && (
         <div className="space-y-0.5">
-          {mockPeakHours.map(h => {
-            const maxEng = mockPeakHours.reduce((a, b) => Math.max(a, b.engagement), 0);
+          {peakHoursData.map(h => {
+            const maxEng = peakHoursData.reduce((a, b) => Math.max(a, b.engagement), 0);
             const widthPct = (h.engagement / maxEng) * 100;
             const isPeak = h.engagement > maxEng * 0.85;
             return (
@@ -152,8 +216,8 @@ export default function PeakHours() {
       {/* Days Bar View */}
       {view === 'days' && (
         <div className="flex items-end gap-2 h-[120px] px-2">
-          {mockPeakDays.map(d => {
-            const maxEng = mockPeakDays.reduce((a, b) => Math.max(a, b.engagement), 0);
+          {peakDaysData.map(d => {
+            const maxEng = peakDaysData.reduce((a, b) => Math.max(a, b.engagement), 0);
             const heightPct = (d.engagement / maxEng) * 100;
             const isPeak = d.engagement === maxEng;
             return (

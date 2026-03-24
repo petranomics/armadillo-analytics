@@ -6,178 +6,102 @@ import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
 import { USER_TYPES, ALL_METRICS, type MetricDefinition, type MetricCategory, CATEGORY_LABELS } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
-import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, AlertCircle } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import type { Post } from '@/lib/types';
+import { getAIOneLiner } from '@/lib/ai-insights';
 
 const EngagementBreakdown = dynamic(() => import('@/components/mobile/charts/EngagementBreakdown'), { ssr: false });
 const EngagementTrend = dynamic(() => import('@/components/mobile/charts/EngagementTrend'), { ssr: false });
 const PeakHours = dynamic(() => import('@/components/mobile/charts/PeakHours'), { ssr: false });
 const WatchDuration = dynamic(() => import('@/components/mobile/charts/WatchDuration'), { ssr: false });
 
-// Mock metric values for the dashboard
-function getMockValue(metric: MetricDefinition): { value: string; trend: number; raw: number } {
-  const seed = metric.id.length * 7 + metric.label.length * 3;
-  switch (metric.format) {
-    case 'percentage':
-      return { value: `${(2 + (seed % 15)).toFixed(1)}%`, trend: ((seed % 8) - 3), raw: 2 + (seed % 15) };
-    case 'currency':
-      return { value: `$${(50 + (seed % 950)).toLocaleString()}`, trend: ((seed % 12) - 4), raw: 50 + (seed % 950) };
-    case 'duration':
-      return { value: `${1 + (seed % 12)}m ${seed % 60}s`, trend: ((seed % 6) - 2), raw: seed };
-    case 'ratio':
-      return { value: `${(seed % 5) + 1}:${(seed % 3) + 1}`, trend: ((seed % 7) - 3), raw: seed };
-    default: {
-      const n = (seed * 137 + 2847) % 50000;
-      if (n >= 10000) return { value: `${(n / 1000).toFixed(1)}K`, trend: ((seed % 10) - 3), raw: n };
-      if (n >= 1000) return { value: `${(n / 1000).toFixed(1)}K`, trend: ((seed % 10) - 3), raw: n };
-      return { value: n.toLocaleString(), trend: ((seed % 10) - 3), raw: n };
-    }
-  }
+interface LiveMetrics {
+  totalLikes: number;
+  totalComments: number;
+  totalShares: number;
+  totalViews: number;
+  totalSaves: number;
+  followers: number;
+  engagementRate: number;
+  followerGrowth: number;
+  postCount: number;
 }
 
-// AI-powered one-liner contextual insights based on metric + trend
-function getAIOneLiner(metric: MetricDefinition, trend: number): string {
-  const up = trend >= 0;
-  const abs = Math.abs(trend);
-  const strong = abs >= 5;
-
-  // Metric-specific insights
-  const insights: Record<string, [string, string]> = {
-    engagement_rate: [
-      strong ? `Strong momentum — your audience is ${abs}% more engaged than last period` : `Steady engagement — your content is resonating consistently`,
-      strong ? `Engagement dropped ${abs}% — try experimenting with new content formats` : `Slight dip — normal fluctuation, keep your posting rhythm`,
-    ],
-    likes: [
-      strong ? `Likes are surging — your recent content is hitting with your audience` : `Likes holding steady — your audience is consistently showing love`,
-      strong ? `Like count is cooling off — your last few posts may need stronger hooks` : `Small dip in likes — try posting during your peak hours`,
-    ],
-    follower_growth: [
-      strong ? `You're gaining followers faster than usual — something's working` : `Steady growth — you're building a loyal audience`,
-      strong ? `Growth slowed — consider collaborations or trending content to re-accelerate` : `Slight slowdown — this is normal after a growth spike`,
-    ],
-    comments: [
-      `Comments are up ${abs}% — your audience wants to talk, keep the conversation going`,
-      `Comments dipped — try ending captions with a question to spark discussion`,
-    ],
-    shares: [
-      `Your content is being shared more — this is your strongest growth lever`,
-      `Fewer shares this period — create more "save & share" worthy content`,
-    ],
-    saves: [
-      `Saves are climbing — people want to come back to your content, that's high intent`,
-      `Saves are down — educational or list-style content tends to boost this metric`,
-    ],
-    reach: [
-      strong ? `Your reach expanded ${abs}% — the algorithm is pushing your content to new audiences` : `Reach is stable — your content is consistently getting in front of people`,
-      strong ? `Reach contracted ${abs}% — hashtags and posting times could help here` : `Slight reach dip — try posting more Reels to boost discovery`,
-    ],
-    impressions: [
-      `More eyeballs on your content — your posts are appearing in feeds ${abs}% more often`,
-      `Impressions down — your content may be getting less priority in the feed`,
-    ],
-    views: [
-      `Video views are up — your thumbnails and hooks are working`,
-      `Views dipped — the first 3 seconds of your video are critical for retention`,
-    ],
-    profile_views: [
-      `More people are checking out your profile — your content is sparking curiosity`,
-      `Profile visits slowed — make sure your bio and pinned posts are compelling`,
-    ],
-    website_taps: [
-      `Website traffic from social is up — your CTAs are driving action`,
-      `Fewer website taps — try adding clearer calls-to-action in your content`,
-    ],
-    story_completion: [
-      `Viewers are watching your Stories all the way through — great pacing`,
-      `Story drop-off increased — keep Stories under 7 frames for better completion`,
-    ],
-    reel_retention: [
-      `Reel retention is strong — your audience is watching longer`,
-      `Reel retention dropped — try front-loading your best content in the first 2 seconds`,
-    ],
-    top_posts: [
-      `Your top content is outperforming your average — lean into these formats`,
-      `Top post performance dipped — review what worked in your best content last month`,
-    ],
-    best_posting_times: [
-      `Your posting windows are aligned with audience activity — good timing`,
-      `You may be missing your audience's peak hours — check your active-hours data`,
-    ],
-    hashtag_performance: [
-      `Your hashtags are driving more discovery than last period`,
-      `Hashtag reach is down — rotate in some trending tags relevant to your niche`,
-    ],
-    subscriber_growth: [
-      `Subscriber momentum is strong — your content is converting viewers`,
-      `Sub growth slowed — pinned comments and end screens can help convert viewers`,
-    ],
-    watch_time: [
-      `Watch time is climbing — the algorithm rewards this heavily`,
-      `Watch time dropped — shorter, punchier intros can help retain viewers`,
-    ],
-    click_through_rate: [
-      `Your thumbnails are earning more clicks — keep testing bold visuals`,
-      `CTR dipped — try A/B testing your thumbnail style`,
-    ],
-    conversion_rate: [
-      `Conversions up ${abs}% — your content-to-purchase funnel is working`,
-      `Conversion rate dropped — review your product placement and CTAs`,
-    ],
-    revenue_per_video: [
-      `Revenue per video is up — you're earning more from each piece of content`,
-      `Revenue per video dipped — focus on products with higher margins`,
-    ],
-    shop_clicks: [
-      `More viewers are tapping through to shop — your product hooks are landing`,
-      `Shop clicks down — try showcasing products in the first few seconds`,
-    ],
+interface ExportData {
+  profile: { followers: number; [key: string]: unknown };
+  posts: Post[];
+  summary: { avgEngagementRate: number; [key: string]: unknown };
+  computedMetrics: {
+    totalLikes: number;
+    totalComments: number;
+    totalShares: number;
+    totalViews: number;
+    avgViewsPerPost: number;
+    postingFreq: string;
+    avgEngagementRate: number;
   };
+}
 
-  const pair = insights[metric.id];
-  if (pair) return up ? pair[0] : pair[1];
+function loadPlatformData(platforms: string[]): { metrics: LiveMetrics | null; allPosts: Post[] } {
+  let totalLikes = 0, totalComments = 0, totalShares = 0, totalViews = 0;
+  let followers = 0, engagementRateSum = 0, platformCount = 0, postCount = 0;
+  const allPosts: Post[] = [];
 
-  // Fallback based on category
-  const categoryFallbacks: Record<string, [string, string]> = {
-    engagement: [
-      `This engagement metric is trending up ${abs}% — your content strategy is working`,
-      `Down ${abs}% — test different content types to re-engage your audience`,
-    ],
-    reach: [
-      `Visibility up ${abs}% — more people are discovering your content`,
-      `Reach dipped ${abs}% — experiment with posting times and formats`,
-    ],
-    audience: [
-      `Your audience metrics are improving — you're attracting the right people`,
-      `Audience metric declined — review if your content matches your target demographic`,
-    ],
-    content: [
-      `Content performance trending up — double down on what's working`,
-      `Content metric dipped — analyze your top posts from last month for patterns`,
-    ],
-    growth: [
-      `Growth is accelerating — your audience is expanding faster`,
-      `Growth slowed this period — collaborations can help reignite momentum`,
-    ],
-    revenue: [
-      `Revenue metric up ${abs}% — your monetization strategy is paying off`,
-      `Revenue dipped — revisit your pricing or promotional content`,
-    ],
-    competitive: [
-      `You're gaining ground against competitors in your niche`,
-      `Competitors may be outpacing you — review their recent content strategy`,
-    ],
-    sentiment: [
-      `Audience sentiment is trending positive — your community loves your content`,
-      `Sentiment shifted — check recent comments for feedback to address`,
-    ],
+  for (const platform of platforms) {
+    try {
+      const raw = localStorage.getItem(`armadillo-export-data-${platform}`);
+      if (!raw) continue;
+      const data = JSON.parse(raw) as ExportData;
+      const cm = data.computedMetrics;
+      totalLikes += cm.totalLikes;
+      totalComments += cm.totalComments;
+      totalShares += cm.totalShares;
+      totalViews += cm.totalViews;
+      followers += data.profile.followers || 0;
+      engagementRateSum += cm.avgEngagementRate;
+      postCount += data.posts?.length || 0;
+      platformCount++;
+      if (data.posts) allPosts.push(...data.posts);
+    } catch { /* ignore parse errors */ }
+  }
+
+  // Also try the generic key as fallback
+  if (platformCount === 0) {
+    try {
+      const raw = localStorage.getItem('armadillo-export-data');
+      if (raw) {
+        const data = JSON.parse(raw) as ExportData;
+        const cm = data.computedMetrics;
+        totalLikes = cm.totalLikes;
+        totalComments = cm.totalComments;
+        totalShares = cm.totalShares;
+        totalViews = cm.totalViews;
+        followers = data.profile.followers || 0;
+        engagementRateSum = cm.avgEngagementRate;
+        postCount = data.posts?.length || 0;
+        platformCount = 1;
+        if (data.posts) allPosts.push(...data.posts);
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (platformCount === 0) return { metrics: null, allPosts: [] };
+
+  return {
+    metrics: {
+      totalLikes,
+      totalComments,
+      totalShares,
+      totalViews,
+      totalSaves: 0,
+      followers,
+      engagementRate: parseFloat((engagementRateSum / platformCount).toFixed(1)),
+      followerGrowth: followers,
+      postCount,
+    },
+    allPosts,
   };
-
-  const catPair = categoryFallbacks[metric.category];
-  if (catPair) return up ? catPair[0] : catPair[1];
-
-  return up
-    ? `Up ${abs}% this period — keep the momentum going`
-    : `Down ${abs}% — worth investigating what changed`;
 }
 
 export default function MobileDashboard() {
@@ -185,6 +109,9 @@ export default function MobileDashboard() {
   const [profile, setProfile] = useState<MobileUserProfile | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
+  const [liveMetrics, setLiveMetrics] = useState<LiveMetrics | null>(null);
+  const [allPosts, setAllPosts] = useState<Post[]>([]);
+  const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
     const p = getMobileProfile();
@@ -193,8 +120,31 @@ export default function MobileDashboard() {
       return;
     }
     setProfile(p);
+    const { metrics, allPosts: posts } = loadPlatformData(p.selectedPlatforms);
+    if (metrics) {
+      setLiveMetrics(metrics);
+      setAllPosts(posts);
+      setIsLive(true);
+    }
     setLoaded(true);
   }, [router]);
+
+  // Listen for export data updates from other tabs
+  useEffect(() => {
+    if (!profile) return;
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith('armadillo-export-data') && e.newValue) {
+        const { metrics, allPosts: posts } = loadPlatformData(profile.selectedPlatforms);
+        if (metrics) {
+          setLiveMetrics(metrics);
+          setAllPosts(posts);
+          setIsLive(true);
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [profile]);
 
   if (!loaded || !profile) return null;
 
@@ -203,23 +153,58 @@ export default function MobileDashboard() {
     .map(id => ALL_METRICS.find(m => m.id === id))
     .filter(Boolean) as MetricDefinition[];
 
-  // Group metrics by category for display
   const grouped: Record<string, MetricDefinition[]> = {};
   for (const m of selectedMetricDefs) {
     if (!grouped[m.category]) grouped[m.category] = [];
     grouped[m.category].push(m);
   }
 
-  // Top 4 KPIs for the hero section
   const heroMetrics = selectedMetricDefs.slice(0, 4);
 
-  // Show watch duration chart if user has video-centric platforms
   const videoPlatforms = ['tiktok', 'youtube', 'instagram'] as const;
   const hasVideoMetrics = profile.selectedPlatforms.some(p => videoPlatforms.includes(p as typeof videoPlatforms[number]));
 
   const toggleExpand = (id: string) => {
     setExpandedMetric(prev => prev === id ? null : id);
   };
+
+  // Returns real scraped data or '--' when unavailable
+  function getMetricValue(metric: MetricDefinition): { value: string; trend: number; raw: number } {
+    if (!liveMetrics) return { value: '--', trend: 0, raw: 0 };
+
+    const formatNum = (n: number) => {
+      if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+      if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+      return n.toLocaleString();
+    };
+
+    switch (metric.id) {
+      case 'engagement_rate':
+        return { value: `${liveMetrics.engagementRate}%`, trend: 0, raw: liveMetrics.engagementRate };
+      case 'likes':
+        return { value: formatNum(liveMetrics.totalLikes), trend: 0, raw: liveMetrics.totalLikes };
+      case 'follower_growth':
+        return { value: formatNum(liveMetrics.followers), trend: 0, raw: liveMetrics.followers };
+      case 'comments':
+        return { value: formatNum(liveMetrics.totalComments), trend: 0, raw: liveMetrics.totalComments };
+      case 'shares':
+        return { value: liveMetrics.totalShares > 0 ? formatNum(liveMetrics.totalShares) : '--', trend: 0, raw: liveMetrics.totalShares };
+      case 'saves':
+        return { value: liveMetrics.totalSaves > 0 ? formatNum(liveMetrics.totalSaves) : '--', trend: 0, raw: liveMetrics.totalSaves };
+      case 'views':
+      case 'video_views':
+        return { value: liveMetrics.totalViews > 0 ? formatNum(liveMetrics.totalViews) : '--', trend: 0, raw: liveMetrics.totalViews };
+      case 'profile_views':
+      case 'reach':
+      case 'impressions':
+      case 'website_taps':
+      case 'directions_taps':
+      case 'call_taps':
+        return { value: '--', trend: 0, raw: 0 };
+      default:
+        return { value: '--', trend: 0, raw: 0 };
+    }
+  }
 
   return (
     <div className="pb-20">
@@ -234,6 +219,11 @@ export default function MobileDashboard() {
               </svg>
             </div>
             <h1 className="font-display text-xl text-armadillo-text">Dashboard</h1>
+            {isLive && (
+              <span className="flex items-center gap-1.5 text-[10px] text-success bg-success/10 px-2 py-0.5 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Live
+              </span>
+            )}
           </div>
           <p className="text-[11px] text-armadillo-muted mt-1 ml-10">
             {userConfig?.label} &middot; {profile.selectedPlatforms.map(p => PLATFORM_NAMES[p]).join(', ')}
@@ -274,7 +264,7 @@ export default function MobileDashboard() {
                 <div>
                   <div className="text-xs font-medium text-armadillo-text">{PLATFORM_NAMES[platform]}</div>
                   <div className="text-[9px] text-armadillo-muted">
-                    {profile.platformUsernames[platform] ? `@${profile.platformUsernames[platform]}` : 'Demo data'}
+                    {profile.platformUsernames[platform] ? `@${profile.platformUsernames[platform]}` : 'Not connected'}
                   </div>
                 </div>
               </div>
@@ -287,9 +277,9 @@ export default function MobileDashboard() {
       <div className="px-5 mb-5">
         <div className="grid grid-cols-2 gap-3">
           {heroMetrics.map((metric) => {
-            const { value, trend } = getMockValue(metric);
+            const { value, trend } = getMetricValue(metric);
             const isExpanded = expandedMetric === metric.id;
-            const aiLine = getAIOneLiner(metric, trend);
+            const aiLine = isLive ? getAIOneLiner(metric, trend) : null;
             return (
               <button
                 key={metric.id}
@@ -301,18 +291,21 @@ export default function MobileDashboard() {
                   <span className="text-[10px] text-armadillo-muted uppercase tracking-wider font-medium truncate">{metric.label}</span>
                 </div>
                 <div className="font-display text-2xl text-armadillo-text mb-1">{value}</div>
-                <div className={`flex items-center gap-1 text-[11px] ${trend >= 0 ? 'text-success' : 'text-danger'}`}>
-                  {trend >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                  {Math.abs(trend)}% this period
-                </div>
-                {/* AI one-liner */}
-                <div className="flex items-start gap-1.5 mt-2.5 pt-2.5 border-t border-armadillo-border/50">
-                  <Sparkles size={10} className="text-burnt shrink-0 mt-0.5" />
-                  <p className={`text-[10px] leading-relaxed text-armadillo-muted ${isExpanded ? '' : 'line-clamp-2'}`}>
-                    {aiLine}
-                  </p>
-                </div>
-                {/* Explainer on expand */}
+                {trend !== 0 && (
+                  <div className={`flex items-center gap-1 text-[11px] ${trend >= 0 ? 'text-success' : 'text-danger'}`}>
+                    {trend >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                    {Math.abs(trend)}% this period
+                  </div>
+                )}
+                {/* AI one-liner - only when live data */}
+                {aiLine && (
+                  <div className="flex items-start gap-1.5 mt-2.5 pt-2.5 border-t border-armadillo-border/50">
+                    <Sparkles size={10} className="text-burnt shrink-0 mt-0.5" />
+                    <p className={`text-[10px] leading-relaxed text-armadillo-muted ${isExpanded ? '' : 'line-clamp-2'}`}>
+                      {aiLine}
+                    </p>
+                  </div>
+                )}
                 {isExpanded && (
                   <div className="flex items-start gap-1.5 mt-2 pt-2 border-t border-armadillo-border/50">
                     <Info size={10} className="text-armadillo-muted shrink-0 mt-0.5" />
@@ -327,12 +320,27 @@ export default function MobileDashboard() {
         </div>
       </div>
 
+      {/* No data banner */}
+      {!isLive && (
+        <div className="px-5 mb-5">
+          <div className="bg-burnt/10 border border-burnt/30 rounded-lg px-4 py-3 flex items-center gap-2">
+            <AlertCircle size={16} className="text-burnt shrink-0" />
+            <div>
+              <span className="text-sm text-burnt font-medium">No live data yet.</span>
+              <span className="text-sm text-armadillo-muted ml-1">
+                Visit your platform dashboard to fetch live data.
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Interactive Charts Section */}
       <div className="px-5 mb-5 space-y-3">
         <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-0.5">Analytics Overview</h3>
-        <EngagementBreakdown />
-        <EngagementTrend />
-        <PeakHours />
+        <EngagementBreakdown realData={liveMetrics ? { likes: liveMetrics.totalLikes, comments: liveMetrics.totalComments, shares: liveMetrics.totalShares, saves: liveMetrics.totalSaves } : undefined} />
+        <EngagementTrend posts={allPosts.length > 0 ? allPosts : undefined} />
+        <PeakHours posts={allPosts.length > 0 ? allPosts : undefined} />
         {hasVideoMetrics && <WatchDuration />}
       </div>
 
@@ -348,9 +356,9 @@ export default function MobileDashboard() {
             </h3>
             <div className="bg-armadillo-card border border-armadillo-border rounded-2xl overflow-hidden">
               {categoryMetrics.map((metric, i) => {
-                const { value, trend } = getMockValue(metric);
+                const { value, trend } = getMetricValue(metric);
                 const isExpanded = expandedMetric === metric.id;
-                const aiLine = getAIOneLiner(metric, trend);
+                const aiLine = isLive ? getAIOneLiner(metric, trend) : null;
                 return (
                   <div
                     key={metric.id}
@@ -363,18 +371,21 @@ export default function MobileDashboard() {
                       <span className="text-base shrink-0">{metric.icon}</span>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-medium text-armadillo-text">{metric.label}</div>
-                        {/* AI one-liner always visible */}
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <Sparkles size={8} className="text-burnt shrink-0" />
-                          <p className="text-[10px] text-armadillo-muted truncate">{aiLine}</p>
-                        </div>
+                        {aiLine && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Sparkles size={8} className="text-burnt shrink-0" />
+                            <p className="text-[10px] text-armadillo-muted truncate">{aiLine}</p>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-sm font-display text-armadillo-text">{value}</div>
-                        <div className={`text-[10px] flex items-center justify-end gap-0.5 ${trend >= 0 ? 'text-success' : 'text-danger'}`}>
-                          {trend >= 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-                          {Math.abs(trend)}%
-                        </div>
+                        {trend !== 0 && (
+                          <div className={`text-[10px] flex items-center justify-end gap-0.5 ${trend >= 0 ? 'text-success' : 'text-danger'}`}>
+                            {trend >= 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                            {Math.abs(trend)}%
+                          </div>
+                        )}
                       </div>
                       {isExpanded ? (
                         <ChevronUp size={14} className="text-armadillo-border shrink-0" />
@@ -382,15 +393,16 @@ export default function MobileDashboard() {
                         <ChevronDown size={14} className="text-armadillo-border shrink-0" />
                       )}
                     </button>
-                    {/* Expanded: full AI insight + explainer */}
                     {isExpanded && (
                       <div className="px-4 pb-3.5 -mt-1 space-y-2">
-                        <div className="bg-burnt/5 border border-burnt/20 rounded-xl p-3">
-                          <div className="flex items-start gap-2">
-                            <Sparkles size={12} className="text-burnt shrink-0 mt-0.5" />
-                            <p className="text-[11px] text-armadillo-text/80 leading-relaxed">{aiLine}</p>
+                        {aiLine && (
+                          <div className="bg-burnt/5 border border-burnt/20 rounded-xl p-3">
+                            <div className="flex items-start gap-2">
+                              <Sparkles size={12} className="text-burnt shrink-0 mt-0.5" />
+                              <p className="text-[11px] text-armadillo-text/80 leading-relaxed">{aiLine}</p>
+                            </div>
                           </div>
-                        </div>
+                        )}
                         <div className="flex items-start gap-2 px-1">
                           <Info size={10} className="text-armadillo-muted shrink-0 mt-0.5" />
                           <p className="text-[10px] text-armadillo-muted/70 leading-relaxed">{metric.description}</p>

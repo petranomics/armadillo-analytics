@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { mockEngagementByType } from '@/lib/mock-data';
+import type { Post } from '@/lib/types';
 
 const SERIES = [
   { key: 'likes', label: 'Likes', color: '#BF5700' },
@@ -18,16 +18,43 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-export default function EngagementTrend() {
+interface EngagementTrendProps {
+  posts?: Post[];
+}
+
+export default function EngagementTrend({ posts }: EngagementTrendProps) {
   const [activeSeries, setActiveSeries] = useState<Set<SeriesKey>>(
     new Set(SERIES.map(s => s.key))
   );
+
+  const chartData = useMemo(() => {
+    if (!posts || posts.length === 0) return [];
+    const byDate: Record<string, { likes: number; comments: number; shares: number; saves: number }> = {};
+    for (const p of posts) {
+      const d = new Date(p.publishedAt);
+      if (isNaN(d.getTime())) continue;
+      const key = d.toISOString().slice(0, 10);
+      if (!byDate[key]) byDate[key] = { likes: 0, comments: 0, shares: 0, saves: 0 };
+      byDate[key].likes += p.metrics.likes || 0;
+      byDate[key].comments += p.metrics.comments || 0;
+      byDate[key].shares += p.metrics.shares || 0;
+      byDate[key].saves += p.metrics.saves || 0;
+    }
+    return Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, vals]) => ({
+        shortDate: new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        ...vals,
+      }));
+  }, [posts]);
+
+  const isLive = posts && posts.length > 0;
 
   const toggleSeries = (key: SeriesKey) => {
     setActiveSeries(prev => {
       const next = new Set(prev);
       if (next.has(key)) {
-        if (next.size === 1) return prev; // keep at least one
+        if (next.size === 1) return prev;
         next.delete(key);
       } else {
         next.add(key);
@@ -40,7 +67,7 @@ export default function EngagementTrend() {
     <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-semibold text-armadillo-text uppercase tracking-wider">Engagement Trend</h3>
-        <span className="text-[10px] text-armadillo-muted">30 days</span>
+        <span className="text-[10px] text-armadillo-muted">{isLive ? 'Live data' : '30 days'}</span>
       </div>
 
       {/* Toggle Pills */}
@@ -69,11 +96,16 @@ export default function EngagementTrend() {
       </div>
 
       {/* Chart */}
+      {chartData.length === 0 ? (
+        <div className="flex items-center justify-center h-[180px] text-sm text-armadillo-muted">
+          No data yet — fetch your analytics to see this chart
+        </div>
+      ) : (
       <ResponsiveContainer width="100%" height={180}>
-        <AreaChart data={mockEngagementByType} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+        <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
           <defs>
             {SERIES.map(s => (
-              <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+              <linearGradient key={s.key} id={`m-grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={s.color} stopOpacity={0.25} />
                 <stop offset="95%" stopColor={s.color} stopOpacity={0.02} />
               </linearGradient>
@@ -114,12 +146,13 @@ export default function EngagementTrend() {
                 stackId="1"
                 stroke={s.color}
                 strokeWidth={1.5}
-                fill={`url(#grad-${s.key})`}
+                fill={`url(#m-grad-${s.key})`}
               />
             )
           ))}
         </AreaChart>
       </ResponsiveContainer>
+      )}
     </div>
   );
 }
