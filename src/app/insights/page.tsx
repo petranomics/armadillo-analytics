@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile, type UserProfile } from '@/lib/store';
 import { PLATFORM_NAMES } from '@/lib/constants';
-import { getAIAnalysis } from '@/lib/ai-insights';
-import { mockHashtagStats, mockRedditTrends, mockTikTokTrends } from '@/lib/trend-data';
 import type { HashtagStats, RedditTrend, TikTokTrend } from '@/lib/types';
 import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, Sparkles, Lock, ChevronDown, ChevronUp, RefreshCw, Loader2, Clock, Film, Image } from 'lucide-react';
 
@@ -145,21 +143,18 @@ export default function InsightsPage() {
 
           setHashtagStats(
                     statsRes.status === 'fulfilled' && statsRes.value.hashtagStats?.length
-                      ? statsRes.value.hashtagStats : mockHashtagStats
+                      ? statsRes.value.hashtagStats : null
                   );
                 setRedditTrends(
                           redditRes.status === 'fulfilled' && redditRes.value.redditTrends?.length
-                            ? redditRes.value.redditTrends : mockRedditTrends
+                            ? redditRes.value.redditTrends : null
                         );
                 setTiktokTrends(
                           tiktokRes.status === 'fulfilled' && tiktokRes.value.tiktokTrends?.length
-                            ? tiktokRes.value.tiktokTrends : mockTikTokTrends
+                            ? tiktokRes.value.tiktokTrends : null
                         );
         } catch {
-                setHashtagStats(mockHashtagStats);
-                setRedditTrends(mockRedditTrends);
-                setTiktokTrends(mockTikTokTrends);
-                setTrendsError('Could not fetch live trends, showing cached data');
+                setTrendsError('Could not fetch live trends');
         } finally {
                 setTrendsLoading(false);
         }
@@ -182,9 +177,9 @@ export default function InsightsPage() {
           userType: profile.userType,
           niche: profile.tiktokNiche || undefined,
           trends: {
-            hashtagStats: hashtagStats || mockHashtagStats,
-            redditTrends: redditTrends || mockRedditTrends,
-            tiktokTrends: tiktokTrends || mockTikTokTrends,
+            hashtagStats: hashtagStats || [],
+            redditTrends: redditTrends || [],
+            tiktokTrends: tiktokTrends || [],
           },
         }),
       });
@@ -194,8 +189,6 @@ export default function InsightsPage() {
     } catch (err) {
       console.error('AI insights error:', err);
       setAiError(err instanceof Error ? err.message : 'Failed to generate insights');
-      // Fall back to static analysis
-      setAiAnalysis(getAIAnalysis() as AIAnalysisData);
     } finally {
       setAiLoading(false);
     }
@@ -212,21 +205,10 @@ export default function InsightsPage() {
   if (!loaded || !profile) return null;
 
   const isPro = profile.plan === 'pro';
-  const staticAnalysis = getAIAnalysis() as AIAnalysisData;
-  const displayAnalysis = aiAnalysis || staticAnalysis;
+  const displayAnalysis = aiAnalysis;
 
-  // Use live posts or fallback
-  const fallbackPosts: LivePosts[] = [
-    { id: 1, caption: 'Austin sunrise hits different from Mount Bonnell', likes: 4200, comments: 186, shares: 320, views: 45000, engagement: 10.5, daysAgo: 1 },
-    { id: 2, caption: 'Best breakfast tacos ranked (this got spicy in the comments)', likes: 8300, comments: 520, shares: 610, views: 82000, engagement: 11.5, daysAgo: 3 },
-    { id: 3, caption: 'POV: First time at Barton Springs Pool', likes: 2100, comments: 98, shares: 280, views: 18900, engagement: 13.1, daysAgo: 5 },
-    { id: 4, caption: 'South Congress vintage shopping haul - found some gems', likes: 1840, comments: 72, shares: 210, views: 15600, engagement: 13.6, daysAgo: 7 },
-    { id: 5, caption: 'Rating every coffee shop on South Lamar (thread)', likes: 6800, comments: 560, shares: 340, views: 52300, engagement: 14.7, daysAgo: 9 },
-    { id: 6, caption: 'Lady Bird Lake kayak day - perfect weather', likes: 1520, comments: 64, shares: 190, views: 13400, engagement: 13.2, daysAgo: 11 },
-    { id: 7, caption: 'Franklin BBQ: was the 4 hour wait worth it? Full review', likes: 12100, comments: 780, shares: 540, views: 96700, engagement: 13.9, daysAgo: 14 },
-    { id: 8, caption: 'Rainey Street bar guide for 2026 - save this', likes: 3400, comments: 110, shares: 420, views: 28800, engagement: 13.7, daysAgo: 17 },
-      ];
-    const posts = livePosts || fallbackPosts;
+  // Use live posts or empty array
+    const posts = livePosts || [];
 
   const tabs: { key: typeof activeTab; label: string; locked?: boolean }[] = [
     { key: 'ai', label: 'AI Analysis', locked: !isPro },
@@ -277,7 +259,7 @@ export default function InsightsPage() {
                                                                       <div>
                                                                                       <h2 className="font-display text-xl text-armadillo-text font-semibold">AI Analytics Writeup</h2>
                                                                                       <p className="text-xs text-armadillo-muted">
-                                                                                        {aiAnalysis
+                                                                                        {displayAnalysis
                                                                                           ? `Generated ${displayAnalysis.generatedAt} — powered by your data + market trends`
                                                                                           : 'Analyze your content performance with AI-powered insights'}
                                                                                       </p>
@@ -308,12 +290,23 @@ export default function InsightsPage() {
                     {/* Error state */}
                     {aiError && !aiLoading && (
                       <div className="bg-danger/10 border border-danger/20 rounded-xl p-4 text-sm text-danger">
-                        {aiError} — showing cached analysis below.
+                        {aiError}
+                      </div>
+                    )}
+
+                    {/* No insights yet */}
+                    {!aiLoading && !displayAnalysis && !aiError && (
+                      <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
+                        <Sparkles size={32} className="text-armadillo-muted/40 mx-auto mb-4" />
+                        <h3 className="font-display text-lg text-armadillo-text mb-2">No AI insights yet</h3>
+                        <p className="text-sm text-armadillo-muted max-w-md mx-auto">
+                          Click &ldquo;Generate Insights&rdquo; above to analyze your content performance with AI.
+                        </p>
                       </div>
                     )}
 
                     {/* Sections */}
-                    {!aiLoading && displayAnalysis.sections.map((section, i) => (
+                    {!aiLoading && displayAnalysis && displayAnalysis.sections.map((section, i) => (
                                 <div key={i} className="bg-armadillo-card border border-armadillo-border rounded-xl overflow-hidden">
                                               <button
                                                                 onClick={() => setExpandedSection(expandedSection === i ? null : i)}
@@ -346,7 +339,7 @@ export default function InsightsPage() {
                                               )}
                                 </div>
                               ))}
-                    {!aiLoading && (
+                    {!aiLoading && displayAnalysis && (
                             <button
                                           onClick={() => setExpandedSection(expandedSection !== null ? null : 0)}
                                           className="w-full text-center text-xs text-burnt font-medium py-2"
@@ -388,6 +381,8 @@ export default function InsightsPage() {
                                   </span>
                                         )}
                             </div>
+                    {posts.length > 0 ? (
+                      <>
                             <div className="grid grid-cols-3 gap-4 mb-8">
                                         <div className="bg-armadillo-card border border-armadillo-border rounded-xl px-5 py-4">
                                                       <p className="text-armadillo-muted text-xs uppercase tracking-wider mb-1">Posts</p>
@@ -426,6 +421,16 @@ export default function InsightsPage() {
                                   </div>
                                 ))}
                             </div>
+                      </>
+                    ) : !postsLoading ? (
+                      <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
+                        <Eye size={32} className="text-armadillo-muted/40 mx-auto mb-4" />
+                        <h3 className="font-display text-lg text-armadillo-text mb-2">No posts yet</h3>
+                        <p className="text-sm text-armadillo-muted max-w-md mx-auto">
+                          Post data will appear here once your account has been scraped. Make sure your username is set correctly in Settings.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
               )}
         
@@ -449,11 +454,11 @@ export default function InsightsPage() {
                             </div>
                   
                     {/* Hashtag Stats */}
-                    {(hashtagStats || mockHashtagStats).length > 0 && (
+                    {hashtagStats && hashtagStats.length > 0 && (
                                 <div>
                                               <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Trending Hashtags</h3>
                                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {(hashtagStats || mockHashtagStats).map(tag => (
+                                                {hashtagStats.map(tag => (
                                                     <div key={tag.hashtag} className="bg-armadillo-card border border-armadillo-border rounded-xl p-4">
                                                                         <div className="flex items-center justify-between mb-1.5">
                                                                                               <span className="text-sm font-medium text-armadillo-text">#{tag.hashtag}</span>
@@ -627,11 +632,11 @@ export default function InsightsPage() {
                     })()}
                   
                     {/* Reddit Trends */}
-                    {(redditTrends || mockRedditTrends).length > 0 && (
+                    {redditTrends && redditTrends.length > 0 && (
                                 <div>
                                               <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Reddit Trends</h3>
                                               <div className="bg-armadillo-card border border-armadillo-border rounded-xl overflow-hidden">
-                                                {(redditTrends || mockRedditTrends).slice(0, 5).map((item, i) => (
+                                                {redditTrends.slice(0, 5).map((item, i) => (
                                                     <div key={i} className={`flex items-center gap-3 px-5 py-4 ${i < 4 ? 'border-b border-armadillo-border/50' : ''}`}>
                                                                         <div className="flex-1 min-w-0">
                                                                                               <div className="text-sm text-armadillo-text font-medium truncate">{item.title}</div>
@@ -654,11 +659,11 @@ export default function InsightsPage() {
                             )}
                   
                     {/* TikTok Trends */}
-                    {(tiktokTrends || mockTikTokTrends).length > 0 && (
+                    {tiktokTrends && tiktokTrends.length > 0 && (
                                 <div>
                                               <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">TikTok Trending Products</h3>
                                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {(tiktokTrends || mockTikTokTrends).slice(0, 6).map((item, i) => (
+                                                {tiktokTrends.slice(0, 6).map((item, i) => (
                                                     <div key={i} className="bg-armadillo-card border border-armadillo-border rounded-xl p-4">
                                                                         <div className="flex items-center justify-between mb-1">
                                                                                               <span className="text-sm font-medium text-armadillo-text">{item.productName}</span>
@@ -680,9 +685,20 @@ export default function InsightsPage() {
                                               </div>
                                 </div>
                             )}
+
+                    {/* No trends data empty state */}
+                    {!trendsLoading && !hashtagStats && !redditTrends && !tiktokTrends && posts.length === 0 && (
+                      <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
+                        <TrendingUp size={32} className="text-armadillo-muted/40 mx-auto mb-4" />
+                        <h3 className="font-display text-lg text-armadillo-text mb-2">No trend data yet</h3>
+                        <p className="text-sm text-armadillo-muted max-w-md mx-auto">
+                          Trend data will appear here once live trends can be fetched. Check your connection and try refreshing.
+                        </p>
+                      </div>
+                    )}
                   </div>
               )}
-        
+
           {/* Audience Tab */}
           {activeTab === 'audience' && (
                   <div>
@@ -700,86 +716,12 @@ export default function InsightsPage() {
                                               </button>
                                 </div>
                               ) : (
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                              <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Gender Breakdown</h3>
-                                                              <div className="space-y-4">
-                                                                {[
-                                  { label: 'Female', value: 64, color: 'bg-burnt' },
-                                  { label: 'Male', value: 33, color: 'bg-burnt/50' },
-                                  { label: 'Other', value: 3, color: 'bg-armadillo-muted' },
-                                                    ].map((item) => (
-                                                                          <div key={item.label}>
-                                                                                                <div className="flex justify-between text-sm mb-1.5">
-                                                                                                                        <span className="text-armadillo-text">{item.label}</span>
-                                                                                                                        <span className="text-armadillo-muted">{item.value}%</span>
-                                                                                                  </div>
-                                                                                                <div className="h-2.5 bg-armadillo-border rounded-full overflow-hidden">
-                                                                                                                        <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.value}%` }} />
-                                                                                                  </div>
-                                                                          </div>
-                                                                        ))}
-                                                              </div>
-                                              </div>
-                                              <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Age Range</h3>
-                                                              <div className="space-y-4">
-                                                                {[
-                                  { range: '18-24', pct: 28 },
-                                  { range: '25-34', pct: 42 },
-                                  { range: '35-44', pct: 18 },
-                                  { range: '45-54', pct: 8 },
-                                  { range: '55+', pct: 4 },
-                                                    ].map((age) => (
-                                                                          <div key={age.range}>
-                                                                                                <div className="flex justify-between text-sm mb-1.5">
-                                                                                                                        <span className="text-armadillo-text">{age.range}</span>
-                                                                                                                        <span className="text-armadillo-muted">{age.pct}%</span>
-                                                                                                  </div>
-                                                                                                <div className="h-2.5 bg-armadillo-border rounded-full overflow-hidden">
-                                                                                                                        <div className="h-full bg-burnt rounded-full" style={{ width: `${(age.pct / 42) * 100}%` }} />
-                                                                                                  </div>
-                                                                          </div>
-                                                                        ))}
-                                                              </div>
-                                              </div>
-                                              <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Top Locations</h3>
-                                                              <div className="space-y-3">
-                                                                {[
-                                  { location: 'Austin, TX', pct: 24, emoji: '\uD83E\uDD20' },
-                                  { location: 'Los Angeles, CA', pct: 12, emoji: '\uD83C\uDF34' },
-                                  { location: 'New York, NY', pct: 9, emoji: '\uD83D\uDDFD' },
-                                  { location: 'Houston, TX', pct: 7, emoji: '\uD83D\uDE80' },
-                                  { location: 'Dallas, TX', pct: 6, emoji: '\u26F3' },
-                                                    ].map((loc) => (
-                                                                          <div key={loc.location} className="flex items-center justify-between py-2">
-                                                                                                <div className="flex items-center gap-3">
-                                                                                                                        <span className="text-lg">{loc.emoji}</span>
-                                                                                                                        <span className="text-sm text-armadillo-text">{loc.location}</span>
-                                                                                                  </div>
-                                                                                                <span className="text-sm text-armadillo-muted font-medium">{loc.pct}%</span>
-                                                                          </div>
-                                                                        ))}
-                                                              </div>
-                                              </div>
-                                              <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6">
-                                                              <h3 className="font-display text-lg text-armadillo-text mb-5">Most Active Hours</h3>
-                                                              <div className="flex items-end justify-between gap-1.5 h-36">
-                                                                {[15, 22, 35, 48, 62, 78, 95, 88, 72, 55, 40, 25].map((height, i) => {
-                                                      const isPeak = height > 80;
-                                                      return (
-                                                                              <div key={i} className="flex flex-col items-center flex-1">
-                                                                                                      <div className={`w-full rounded-t-sm ${isPeak ? 'bg-burnt' : 'bg-armadillo-border'}`} style={{ height: `${height}%` }} />
-                                                                                                      <span className="text-armadillo-muted text-[9px] mt-1.5">
-                                                                                                        {6 + i * 1.5 < 12 ? `${Math.floor(6 + i * 1.5)}a` : `${Math.floor(6 + i * 1.5) - 12 || 12}p`}
-                                                                                                        </span>
-                                                                                </div>
-                                                                            );
-                                })}
-                                                              </div>
-                                                              <p className="text-armadillo-muted text-xs mt-4 text-center">Peak activity: 5 PM - 7 PM CT</p>
-                                              </div>
+                                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
+                                  <Lock size={32} className="text-armadillo-muted/40 mx-auto mb-4" />
+                                  <h2 className="font-display text-xl text-armadillo-text mb-3">Audience Demographics Unavailable</h2>
+                                  <p className="text-sm text-armadillo-muted max-w-lg mx-auto">
+                                    Audience demographics (age, gender, location, and active hours) require authenticated Instagram Business API access and are not available from public scraping.
+                                  </p>
                                 </div>
                             )}
                   </div>

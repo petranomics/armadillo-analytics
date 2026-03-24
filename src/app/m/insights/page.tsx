@@ -7,20 +7,16 @@ import { PLATFORM_NAMES } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
 import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, ArrowUpRight, Sparkles, Lock, ChevronDown, ChevronUp, Loader2, RefreshCw, Hash, ExternalLink } from 'lucide-react';
 import type { TrendData, HashtagStats, HashtagPost, RedditTrend, TikTokTrend } from '@/lib/types';
-import { mockHashtagStats, mockHashtagPosts, mockRedditTrends, mockTikTokTrends } from '@/lib/trend-data';
 
-// Mock posts for the insights feed
-function getMockPosts() {
-  return [
-    { id: 1, caption: 'Austin sunrise hits different from Mount Bonnell', likes: 4200, comments: 186, shares: 320, views: 45000, engagement: 10.5, daysAgo: 1 },
-    { id: 2, caption: 'Best breakfast tacos ranked (this got spicy in the comments)', likes: 8300, comments: 520, shares: 610, views: 82000, engagement: 11.5, daysAgo: 3 },
-    { id: 3, caption: 'POV: First time at Barton Springs Pool', likes: 2100, comments: 98, shares: 280, views: 18900, engagement: 13.1, daysAgo: 5 },
-    { id: 4, caption: 'South Congress vintage shopping haul - found some gems', likes: 1840, comments: 72, shares: 210, views: 15600, engagement: 13.6, daysAgo: 7 },
-    { id: 5, caption: 'Rating every coffee shop on South Lamar (thread)', likes: 6800, comments: 560, shares: 340, views: 52300, engagement: 14.7, daysAgo: 9 },
-    { id: 6, caption: 'Lady Bird Lake kayak day - perfect weather', likes: 1520, comments: 64, shares: 190, views: 13400, engagement: 13.2, daysAgo: 11 },
-    { id: 7, caption: 'Franklin BBQ: was the 4 hour wait worth it? Full review', likes: 12100, comments: 780, shares: 540, views: 96700, engagement: 13.9, daysAgo: 14 },
-    { id: 8, caption: 'Rainey Street bar guide for 2026 - save this', likes: 3400, comments: 110, shares: 420, views: 28800, engagement: 13.7, daysAgo: 17 },
-  ];
+interface PostData {
+  id: number;
+  caption: string;
+  likes: number;
+  comments: number;
+  shares: number;
+  views: number;
+  engagement: number;
+  daysAgo: number;
 }
 
 function formatNumber(n: number): string {
@@ -36,47 +32,6 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
-}
-
-// Mock AI analysis writeup
-function getAIAnalysis() {
-  return {
-    generatedAt: 'Feb 17, 2026 at 9:14 AM CT',
-    sections: [
-      {
-        icon: '📊',
-        title: 'Performance Summary',
-        body: "You're trending higher this week with a 14.8% increase in engagement rate. 68% of your followers are actively interacting with your posts — not just scrolling past. Your total reach hit 284K this month, up 17.8% from January.",
-      },
-      {
-        icon: '⏰',
-        title: 'Posting Optimization',
-        body: "You typically post around 10 AM CT, but your content performs 40% better when published between 1-2 PM CT. Tuesday and Thursday are your strongest engagement days — your Tuesday posts average 2.1x more saves than other days.",
-      },
-      {
-        icon: '🖼️',
-        title: 'Content Insights',
-        body: 'Your "Franklin BBQ" review sparked a 96% increase in profile visits compared to your "Lady Bird Lake" post, which had 28% lower engagement. Food reviews consistently outperform lifestyle content by 2.3x. Carousel posts are getting 1.8x more saves than single images.',
-      },
-      {
-        icon: '📅',
-        title: 'Coming Up',
-        body: "St. Patrick's Day is coming up on March 17 — your audience engagement typically spikes 35% during holiday-themed content. Consider preparing a themed post for Austin bars and restaurants. Spring Break (mid-March) is also a strong engagement window for Austin lifestyle content.",
-      },
-      {
-        icon: '💡',
-        title: 'Recommendations',
-        body: null,
-        bullets: [
-          'Shift your posting schedule to 1 PM CT for maximum reach',
-          'Double down on food review content — it\'s your top performer by a wide margin',
-          'Create a St. Patrick\'s Day post leveraging your restaurant review format',
-          'Try more carousel posts — your audience saves them 1.8x more often',
-          'Your Reels under 30 seconds have 22% higher completion rates than longer ones',
-        ],
-      },
-    ],
-  };
 }
 
 export default function InsightsPage() {
@@ -95,11 +50,48 @@ export default function InsightsPage() {
   const [trendErrors, setTrendErrors] = useState<Record<string, string>>({});
   const [trendsFetched, setTrendsFetched] = useState(false);
 
+  // Posts loaded from localStorage export data
+  const [posts, setPosts] = useState<PostData[]>([]);
+
+  // AI analysis state
+  const [aiAnalysis, setAiAnalysis] = useState<{ generatedAt: string; sections: { icon: string; title: string; body?: string | null; bullets?: string[] }[] } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
   useEffect(() => {
     const p = getMobileProfile();
     if (!p.onboardingComplete) { router.push('/m/onboarding'); return; }
     setProfile(p);
     setLoaded(true);
+
+    // Load posts from localStorage export data
+    try {
+      const raw = localStorage.getItem('armadillo-export-data');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const results = Array.isArray(parsed) ? parsed : parsed.results || [];
+        const mapped: PostData[] = results.slice(0, 12).map((item: Record<string, unknown>, i: number) => {
+          const likes = Number(item.likesCount || item.likes || item.diggCount || 0);
+          const comments = Number(item.commentsCount || item.comments || item.commentCount || 0);
+          const shares = Number(item.sharesCount || item.shares || item.shareCount || 0);
+          const views = Number(item.videoViewCount || item.viewCount || item.playCount || item.views || 0);
+          const total = likes + comments + shares;
+          const followers = Number(item.followersCount || item.subscribersCount || 1);
+          const ts = item.timestamp || item.createTime || item.publishedAt;
+          const daysAgo = ts ? Math.max(1, Math.floor((Date.now() - new Date(String(ts)).getTime()) / 86400000)) : i + 1;
+          return {
+            id: i + 1,
+            caption: String(item.caption || item.text || item.title || item.description || '').slice(0, 120),
+            likes, comments, shares, views,
+            engagement: followers > 0 ? parseFloat(((total / followers) * 100).toFixed(1)) : 0,
+            daysAgo,
+          };
+        });
+        if (mapped.length > 0) setPosts(mapped);
+      }
+    } catch {
+      // No export data available
+    }
   }, [router]);
 
   // Fetch a single trend source — only called on demand
@@ -122,14 +114,8 @@ export default function InsightsPage() {
       if (data.redditTrends) setRedditTrends(data.redditTrends);
       if (data.tiktokTrends) setTiktokTrends(data.tiktokTrends);
     } catch (err) {
-      // Fall back to mock data on error
       const message = err instanceof Error ? err.message : 'Unknown error';
       setTrendErrors(prev => ({ ...prev, [source]: message }));
-
-      if (source === 'instagramHashtags') setHashtagStats(mockHashtagStats);
-      if (source === 'instagramHashtagPosts') setHashtagPosts(mockHashtagPosts);
-      if (source === 'redditTrends') setRedditTrends(mockRedditTrends);
-      if (source === 'tiktokTrends') setTiktokTrends(mockTikTokTrends);
     } finally {
       setTrendLoading(prev => ({ ...prev, [source]: false }));
     }
@@ -147,27 +133,53 @@ export default function InsightsPage() {
       if (hasIg) {
         fetchTrend('instagramHashtags', { keywords: ['fitness', 'food', 'travel'] });
         fetchTrend('instagramHashtagPosts', { hashtags: ['austinfood', 'atxlife'], limit: 20 });
-      } else {
-        setHashtagStats(mockHashtagStats);
-        setHashtagPosts(mockHashtagPosts);
       }
 
       fetchTrend('redditTrends', { subreddits: ['https://old.reddit.com/r/popular/'], maxPosts: 15 });
 
       if (hasTiktok) {
         fetchTrend('tiktokTrends', { category: 'General', maxProducts: 8 });
-      } else {
-        setTiktokTrends(mockTikTokTrends);
       }
     }
   }, [activeTab, trendsFetched, profile, fetchTrend]);
+
+  // Fetch AI insights on demand
+  const fetchAIInsights = useCallback(async () => {
+    if (!profile || posts.length === 0) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          posts,
+          platform: profile.selectedPlatforms[0],
+          username: profile.platformUsernames?.[profile.selectedPlatforms[0]] || 'unknown',
+          userType: profile.userType,
+          niche: profile.tiktokNiche || undefined,
+          trends: {
+            hashtagStats: hashtagStats || [],
+            redditTrends: redditTrends || [],
+            tiktokTrends: tiktokTrends || [],
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to generate insights');
+      setAiAnalysis(json);
+    } catch (err) {
+      console.error('AI insights error:', err);
+      setAiError(err instanceof Error ? err.message : 'Failed to generate insights');
+    } finally {
+      setAiLoading(false);
+    }
+  }, [profile, posts, hashtagStats, redditTrends, tiktokTrends]);
 
   if (!loaded || !profile) return null;
 
   const isPro = profile.plan === 'pro';
   const isLiteOrAbove = profile.plan === 'lite' || profile.plan === 'pro';
-  const posts = getMockPosts();
-  const aiAnalysis = getAIAnalysis();
 
   const tabs = isPro
     ? (['ai', 'posts', 'trends', 'audience'] as const)
@@ -207,16 +219,59 @@ export default function InsightsPage() {
       {activeTab === 'ai' && isPro && (
         <div className="px-5 space-y-3">
           <div className="bg-gradient-to-br from-burnt/20 to-burnt/5 border border-burnt/30 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles size={16} className="text-burnt" />
-              <span className="text-sm font-medium text-armadillo-text">AI Analytics Writeup</span>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles size={16} className="text-burnt" />
+                  <span className="text-sm font-medium text-armadillo-text">AI Analytics Writeup</span>
+                </div>
+                <p className="text-[11px] text-armadillo-muted">
+                  {aiAnalysis
+                    ? `Generated ${aiAnalysis.generatedAt} — powered by your data + market trends`
+                    : 'Analyze your content performance with AI-powered insights'}
+                </p>
+              </div>
+              <button
+                onClick={fetchAIInsights}
+                disabled={aiLoading}
+                className="flex items-center gap-1.5 bg-burnt hover:bg-burnt-light disabled:opacity-60 text-white px-3 py-2 rounded-xl text-[11px] font-medium transition-colors shrink-0"
+              >
+                {aiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                {aiLoading ? 'Analyzing...' : aiAnalysis ? 'Regenerate' : 'Generate'}
+              </button>
             </div>
-            <p className="text-[11px] text-armadillo-muted">
-              Generated {aiAnalysis.generatedAt} based on your last 30 days of data across {profile.selectedPlatforms.map(p => PLATFORM_NAMES[p]).join(', ')}.
-            </p>
           </div>
 
-          {aiAnalysis.sections.map((section, i) => (
+          {/* Loading state */}
+          {aiLoading && (
+            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-8 text-center">
+              <Loader2 size={24} className="text-burnt animate-spin mx-auto mb-3" />
+              <p className="text-xs text-armadillo-muted">Analyzing your content...</p>
+            </div>
+          )}
+
+          {/* Error state */}
+          {aiError && !aiLoading && (
+            <div className="bg-danger/10 border border-danger/20 rounded-xl p-3 text-xs text-danger">
+              {aiError}
+            </div>
+          )}
+
+          {/* No insights yet */}
+          {!aiLoading && !aiAnalysis && !aiError && (
+            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-8 text-center">
+              <Sparkles size={24} className="text-armadillo-muted/40 mx-auto mb-3" />
+              <p className="text-sm font-medium text-armadillo-text mb-1">No AI insights yet</p>
+              <p className="text-[11px] text-armadillo-muted">
+                {posts.length > 0
+                  ? 'Tap "Generate" above to analyze your content performance.'
+                  : 'No post data available. Scrape your account first, then generate insights.'}
+              </p>
+            </div>
+          )}
+
+          {/* Sections */}
+          {!aiLoading && aiAnalysis && aiAnalysis.sections.map((section, i) => (
             <div key={i} className="bg-armadillo-card border border-armadillo-border rounded-2xl overflow-hidden">
               <button
                 onClick={() => setExpandedSection(expandedSection === i ? null : i)}
@@ -250,12 +305,14 @@ export default function InsightsPage() {
             </div>
           ))}
 
-          <button
-            onClick={() => setExpandedSection(expandedSection !== null ? null : 0)}
-            className="w-full text-center text-[11px] text-burnt font-medium py-2"
-          >
-            {expandedSection !== null ? 'Collapse all' : 'Expand all sections'}
-          </button>
+          {!aiLoading && aiAnalysis && (
+            <button
+              onClick={() => setExpandedSection(expandedSection !== null ? null : 0)}
+              className="w-full text-center text-[11px] text-burnt font-medium py-2"
+            >
+              {expandedSection !== null ? 'Collapse all' : 'Expand all sections'}
+            </button>
+          )}
         </div>
       )}
 
@@ -282,45 +339,57 @@ export default function InsightsPage() {
       {/* Posts Tab */}
       {activeTab === 'posts' && (
         <div className="px-5 space-y-3">
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
-              <div className="font-display text-lg text-armadillo-text">{posts.length}</div>
-              <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Posts</div>
-            </div>
-            <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
-              <div className="font-display text-lg text-armadillo-text">{formatNumber(posts.reduce((s, p) => s + p.likes, 0))}</div>
-              <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Total Likes</div>
-            </div>
-            <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
-              <div className="font-display text-lg text-burnt">{(posts.reduce((s, p) => s + p.engagement, 0) / posts.length).toFixed(1)}%</div>
-              <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Avg Eng.</div>
-            </div>
-          </div>
+          {posts.length > 0 ? (
+            <>
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
+                  <div className="font-display text-lg text-armadillo-text">{posts.length}</div>
+                  <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Posts</div>
+                </div>
+                <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
+                  <div className="font-display text-lg text-armadillo-text">{formatNumber(posts.reduce((s, p) => s + p.likes, 0))}</div>
+                  <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Total Likes</div>
+                </div>
+                <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
+                  <div className="font-display text-lg text-burnt">{(posts.reduce((s, p) => s + p.engagement, 0) / posts.length).toFixed(1)}%</div>
+                  <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Avg Eng.</div>
+                </div>
+              </div>
 
-          {posts.map((post, i) => (
-            <div key={post.id} className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-armadillo-border flex items-center justify-center text-[10px] text-armadillo-muted font-bold">
-                    {i + 1}
+              {posts.map((post, i) => (
+                <div key={post.id} className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-armadillo-border flex items-center justify-center text-[10px] text-armadillo-muted font-bold">
+                        {i + 1}
+                      </div>
+                      <span className="text-[11px] text-armadillo-muted">{post.daysAgo}d ago</span>
+                    </div>
+                    <div className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      post.engagement > 13 ? 'bg-success/20 text-success' : post.engagement > 10 ? 'bg-burnt/20 text-burnt' : 'bg-armadillo-border text-armadillo-muted'
+                    }`}>
+                      {post.engagement}% eng.
+                    </div>
                   </div>
-                  <span className="text-[11px] text-armadillo-muted">{post.daysAgo}d ago</span>
+                  <p className="text-sm text-armadillo-text mb-3">{post.caption}</p>
+                  <div className="flex items-center gap-4 text-armadillo-muted">
+                    <span className="flex items-center gap-1 text-[11px]"><Eye size={12} />{formatNumber(post.views)}</span>
+                    <span className="flex items-center gap-1 text-[11px]"><Heart size={12} />{formatNumber(post.likes)}</span>
+                    <span className="flex items-center gap-1 text-[11px]"><MessageCircle size={12} />{formatNumber(post.comments)}</span>
+                    <span className="flex items-center gap-1 text-[11px]"><Share2 size={12} />{formatNumber(post.shares)}</span>
+                  </div>
                 </div>
-                <div className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                  post.engagement > 13 ? 'bg-success/20 text-success' : post.engagement > 10 ? 'bg-burnt/20 text-burnt' : 'bg-armadillo-border text-armadillo-muted'
-                }`}>
-                  {post.engagement}% eng.
-                </div>
-              </div>
-              <p className="text-sm text-armadillo-text mb-3">{post.caption}</p>
-              <div className="flex items-center gap-4 text-armadillo-muted">
-                <span className="flex items-center gap-1 text-[11px]"><Eye size={12} />{formatNumber(post.views)}</span>
-                <span className="flex items-center gap-1 text-[11px]"><Heart size={12} />{formatNumber(post.likes)}</span>
-                <span className="flex items-center gap-1 text-[11px]"><MessageCircle size={12} />{formatNumber(post.comments)}</span>
-                <span className="flex items-center gap-1 text-[11px]"><Share2 size={12} />{formatNumber(post.shares)}</span>
-              </div>
+              ))}
+            </>
+          ) : (
+            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-8 text-center">
+              <Eye size={24} className="text-armadillo-muted/40 mx-auto mb-3" />
+              <p className="text-sm font-medium text-armadillo-text mb-1">No posts yet</p>
+              <p className="text-[11px] text-armadillo-muted">
+                Post data will appear here once your account has been scraped. Go to the Dashboard to scrape your account.
+              </p>
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -370,7 +439,7 @@ export default function InsightsPage() {
                 <div>
                   <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5 flex items-center gap-1.5">
                     <Hash size={10} /> Instagram Hashtag Trends
-                    {trendErrors.instagramHashtags && <span className="text-[8px] text-armadillo-muted font-normal">(demo data)</span>}
+                    {trendErrors.instagramHashtags && <span className="text-[8px] text-danger font-normal">(failed to load)</span>}
                   </h3>
                   <div className="bg-armadillo-card border border-armadillo-border rounded-2xl overflow-hidden">
                     {hashtagStats.map((tag, i) => (
@@ -428,7 +497,7 @@ export default function InsightsPage() {
                   <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5 flex items-center gap-1.5">
                     Reddit Trending Topics
                     {!isPro && <Lock size={8} className="text-armadillo-muted" />}
-                    {trendErrors.redditTrends && <span className="text-[8px] text-armadillo-muted font-normal">(demo data)</span>}
+                    {trendErrors.redditTrends && <span className="text-[8px] text-danger font-normal">(failed to load)</span>}
                   </h3>
                   {!isPro ? (
                     <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4 text-center">
@@ -468,7 +537,7 @@ export default function InsightsPage() {
                   <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5 flex items-center gap-1.5">
                     TikTok Trending Content
                     {!isPro && <Lock size={8} className="text-armadillo-muted" />}
-                    {trendErrors.tiktokTrends && <span className="text-[8px] text-armadillo-muted font-normal">(demo data)</span>}
+                    {trendErrors.tiktokTrends && <span className="text-[8px] text-danger font-normal">(failed to load)</span>}
                   </h3>
                   {!isPro ? (
                     <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4 text-center">
@@ -505,32 +574,16 @@ export default function InsightsPage() {
                 </div>
               )}
 
-              {/* Week-over-week comparison */}
-              <div>
-                <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">This Week vs Last Week</h3>
-                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl overflow-hidden">
-                  {[
-                    { name: 'Engagement Rate', current: '12.4%', prev: '10.8%', change: 14.8 },
-                    { name: 'Avg Views', current: '42.3K', prev: '38.1K', change: 11.0 },
-                    { name: 'Followers Gained', current: '+847', prev: '+623', change: 36.0 },
-                    { name: 'Comments', current: '1.2K', prev: '980', change: 22.4 },
-                  ].map((m, i, arr) => (
-                    <div key={m.name} className={`flex items-center gap-3 px-4 py-3.5 ${i < arr.length - 1 ? 'border-b border-armadillo-border/50' : ''}`}>
-                      <div className="flex-1">
-                        <div className="text-xs text-armadillo-text">{m.name}</div>
-                        <div className="text-[10px] text-armadillo-muted mt-0.5">prev: {m.prev}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-display text-armadillo-text">{m.current}</div>
-                        <div className={`text-[10px] flex items-center justify-end gap-0.5 ${m.change >= 0 ? 'text-success' : 'text-danger'}`}>
-                          {m.change >= 0 ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-                          {Math.abs(m.change)}%
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              {/* No trends data empty state */}
+              {!anyTrendLoading && !hashtagStats && !hashtagPosts && !redditTrends && !tiktokTrends && (
+                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-6 text-center">
+                  <TrendingUp size={20} className="text-armadillo-muted/40 mx-auto mb-2" />
+                  <p className="text-xs font-medium text-armadillo-text mb-1">No trend data yet</p>
+                  <p className="text-[11px] text-armadillo-muted">
+                    Trend data will appear here once live trends can be fetched.
+                  </p>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
@@ -551,93 +604,13 @@ export default function InsightsPage() {
               </button>
             </div>
           ) : (
-            <>
-              <div>
-                <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">Demographics</h3>
-                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4 space-y-4">
-                  <div>
-                    <div className="text-xs text-armadillo-muted mb-2">Gender</div>
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <div className="h-2 rounded-full bg-armadillo-border overflow-hidden">
-                          <div className="h-full bg-burnt rounded-full" style={{ width: '64%' }} />
-                        </div>
-                        <div className="flex justify-between mt-1">
-                          <span className="text-[10px] text-armadillo-muted">Female</span>
-                          <span className="text-[10px] text-armadillo-text font-medium">64%</span>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="h-2 rounded-full bg-armadillo-border overflow-hidden">
-                          <div className="h-full bg-burnt/50 rounded-full" style={{ width: '33%' }} />
-                        </div>
-                        <div className="flex justify-between mt-1">
-                          <span className="text-[10px] text-armadillo-muted">Male</span>
-                          <span className="text-[10px] text-armadillo-text font-medium">33%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-armadillo-muted mb-2">Age Range</div>
-                    {[
-                      { range: '18-24', pct: 28 },
-                      { range: '25-34', pct: 42 },
-                      { range: '35-44', pct: 18 },
-                      { range: '45-54', pct: 8 },
-                      { range: '55+', pct: 4 },
-                    ].map((age) => (
-                      <div key={age.range} className="flex items-center gap-3 mb-1.5">
-                        <span className="text-[11px] text-armadillo-muted w-10">{age.range}</span>
-                        <div className="flex-1 h-2 rounded-full bg-armadillo-border overflow-hidden">
-                          <div className="h-full bg-burnt rounded-full transition-all" style={{ width: `${age.pct}%` }} />
-                        </div>
-                        <span className="text-[11px] text-armadillo-text font-medium w-8 text-right">{age.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">Top Locations</h3>
-                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl overflow-hidden">
-                  {[
-                    { location: 'Austin, TX', pct: 24, flag: '🤠' },
-                    { location: 'Los Angeles, CA', pct: 12, flag: '🌴' },
-                    { location: 'New York, NY', pct: 9, flag: '🗽' },
-                    { location: 'Houston, TX', pct: 7, flag: '🚀' },
-                    { location: 'Dallas, TX', pct: 6, flag: '⛳' },
-                  ].map((loc, i) => (
-                    <div key={loc.location} className={`flex items-center gap-3 px-4 py-3 ${i < 4 ? 'border-b border-armadillo-border/50' : ''}`}>
-                      <span className="text-sm">{loc.flag}</span>
-                      <span className="flex-1 text-xs text-armadillo-text">{loc.location}</span>
-                      <span className="text-xs font-medium text-armadillo-text">{loc.pct}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">Most Active Hours (CT)</h3>
-                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
-                  <div className="flex justify-between items-end h-24 gap-1">
-                    {[15, 22, 35, 48, 62, 78, 95, 88, 72, 55, 40, 25].map((height, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div
-                          className={`w-full rounded-sm ${height > 80 ? 'bg-burnt' : height > 50 ? 'bg-burnt/60' : 'bg-armadillo-border'}`}
-                          style={{ height: `${height}%` }}
-                        />
-                        <span className="text-[7px] text-armadillo-muted">{6 + i * 1.5 < 12 ? `${Math.floor(6 + i * 1.5)}a` : `${Math.floor(6 + i * 1.5) - 12 || 12}p`}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 text-center">
-                    <span className="text-[11px] text-burnt font-medium">Peak: 5-7 PM CT</span>
-                  </div>
-                </div>
-              </div>
-            </>
+            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-6 text-center">
+              <Lock size={24} className="text-armadillo-muted/40 mx-auto mb-3" />
+              <div className="text-sm font-medium text-armadillo-text mb-2">Audience Demographics Unavailable</div>
+              <p className="text-[11px] text-armadillo-muted max-w-xs mx-auto">
+                Audience demographics (age, gender, location, and active hours) require authenticated Instagram Business API access and are not available from public scraping.
+              </p>
+            </div>
           )}
         </div>
       )}

@@ -1,25 +1,5 @@
 import type { MetricDefinition } from './user-types';
 
-export function getMockValue(metric: MetricDefinition): { value: string; trend: number; raw: number } {
-  const seed = metric.id.length * 7 + metric.label.length * 3;
-  switch (metric.format) {
-    case 'percentage':
-      return { value: `${(2 + (seed % 15)).toFixed(1)}%`, trend: ((seed % 8) - 3), raw: 2 + (seed % 15) };
-    case 'currency':
-      return { value: `$${(50 + (seed % 950)).toLocaleString()}`, trend: ((seed % 12) - 4), raw: 50 + (seed % 950) };
-    case 'duration':
-      return { value: `${1 + (seed % 12)}m ${seed % 60}s`, trend: ((seed % 6) - 2), raw: seed };
-    case 'ratio':
-      return { value: `${(seed % 5) + 1}:${(seed % 3) + 1}`, trend: ((seed % 7) - 3), raw: seed };
-    default: {
-      const n = (seed * 137 + 2847) % 50000;
-      if (n >= 10000) return { value: `${(n / 1000).toFixed(1)}K`, trend: ((seed % 10) - 3), raw: n };
-      if (n >= 1000) return { value: `${(n / 1000).toFixed(1)}K`, trend: ((seed % 10) - 3), raw: n };
-      return { value: n.toLocaleString(), trend: ((seed % 10) - 3), raw: n };
-    }
-  }
-}
-
 export function getAIOneLiner(metric: MetricDefinition, trend: number): string {
   const up = trend >= 0;
   const abs = Math.abs(trend);
@@ -160,44 +140,4 @@ export function getAIOneLiner(metric: MetricDefinition, trend: number): string {
   return up
     ? `Up ${abs}% this period — keep the momentum going`
     : `Down ${abs}% — worth investigating what changed`;
-}
-
-export function getAIAnalysis() {
-  return {
-    generatedAt: 'Feb 12, 2026 at 9:14 AM CT',
-    sections: [
-      {
-        icon: '📊',
-        title: 'Performance Summary',
-        body: "You're trending higher this week with a 14.8% increase in engagement rate. 68% of your followers are actively interacting with your posts — not just scrolling past. Your total reach hit 284K this month, up 17.8% from January.",
-      },
-      {
-        icon: '⏰',
-        title: 'Posting Optimization',
-        body: "You typically post around 10 AM CT, but your content performs 40% better when published between 1-2 PM CT. Tuesday and Thursday are your strongest engagement days — your Tuesday posts average 2.1x more saves than other days.",
-      },
-      {
-        icon: '🖼️',
-        title: 'Content Insights',
-        body: 'Your "Franklin BBQ" review sparked a 96% increase in profile visits compared to your "Lady Bird Lake" post, which had 28% lower engagement. Food reviews consistently outperform lifestyle content by 2.3x. Carousel posts are getting 1.8x more saves than single images.',
-      },
-      {
-        icon: '📅',
-        title: 'Coming Up',
-        body: "Valentine's Day is 2 days away — your audience engagement typically spikes 35% during holiday-themed content. Consider preparing a themed post. St. Patrick's Day (March 17) is also a strong engagement window for food and nightlife content.",
-      },
-      {
-        icon: '💡',
-        title: 'Recommendations',
-        body: null,
-        bullets: [
-          'Shift your posting schedule to 1 PM CT for maximum reach',
-          'Double down on food review content — it\'s your top performer by a wide margin',
-          'Create a Valentine\'s Day post leveraging your restaurant review format',
-          'Try more carousel posts — your audience saves them 1.8x more often',
-          'Your Reels under 30 seconds have 22% higher completion rates than longer ones',
-        ],
-      },
-    ],
-  };
 }
