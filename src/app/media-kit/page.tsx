@@ -11,6 +11,7 @@ import {
   DEFAULT_OFFERINGS,
 } from '@/lib/media-kit';
 import { USER_TYPES } from '@/lib/user-types';
+import { PLATFORM_NAMES } from '@/lib/constants';
 import MediaKitForm from '@/components/media-kit/MediaKitForm';
 import OneSheet from '@/components/media-kit/OneSheet';
 import { Save, CheckCircle, Download, Loader2, Link2, AlertCircle, Lightbulb } from 'lucide-react';
@@ -23,6 +24,38 @@ const MEDIA_KIT_SUBTITLES: Record<string, string> = {
   'local-business': 'Business Media Kit',
   'media-outlet': 'Media Outlet Kit',
 };
+
+/** Load export data from all connected platforms, merging posts & photos */
+function loadAllPlatformData(platforms: string[]) {
+  const allPhotos: string[] = [];
+  let bestExportData: { data: Record<string, unknown>; postCount: number } | null = null;
+
+  for (const platform of platforms) {
+    for (const key of [`armadillo-export-data-${platform}`, 'armadillo-export-data']) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const data = JSON.parse(raw);
+
+        // Collect photos
+        if (data.profile?.avatarUrlHD) allPhotos.push(data.profile.avatarUrlHD);
+        for (const post of data.posts || []) {
+          if (post.thumbnailUrl) allPhotos.push(post.thumbnailUrl);
+        }
+
+        // Keep the export data with the most posts for populating
+        const postCount = data.posts?.length || 0;
+        if (!bestExportData || postCount > bestExportData.postCount) {
+          bestExportData = { data, postCount };
+        }
+      } catch { /* ignore parse errors */ }
+    }
+  }
+
+  // Deduplicate photos
+  const uniquePhotos = [...new Set(allPhotos)];
+  return { exportData: bestExportData?.data || null, photos: uniquePhotos };
+}
 
 export default function MediaKitPage() {
   const router = useRouter();
@@ -43,22 +76,12 @@ export default function MediaKitPage() {
 
     let kit = getMediaKit();
 
-    // Load export data to auto-populate
-    try {
-      const raw = localStorage.getItem('armadillo-export-data');
-      if (raw) {
-        const exportData = JSON.parse(raw);
-        kit = populateFromExportData(kit, exportData, profile.userType);
-
-        // Collect available photos
-        const photos: string[] = [];
-        if (exportData.profile?.avatarUrlHD) photos.push(exportData.profile.avatarUrlHD);
-        for (const post of exportData.posts || []) {
-          if (post.thumbnailUrl) photos.push(post.thumbnailUrl);
-        }
-        setAvailablePhotos(photos);
-      }
-    } catch { /* ignore parse errors */ }
+    // Auto-populate from all connected platform data
+    const { exportData, photos } = loadAllPlatformData(profile.selectedPlatforms);
+    if (exportData) {
+      kit = populateFromExportData(kit, exportData as Parameters<typeof populateFromExportData>[1], profile.userType);
+    }
+    setAvailablePhotos(photos);
 
     // Ensure offerings exist
     if (kit.offerings.length === 0) {
@@ -75,17 +98,20 @@ export default function MediaKitPage() {
     setLoaded(true);
   }, [router]);
 
-  // Listen for export data updates from other tabs
+  // Listen for export data updates from any platform (same or other tabs)
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'armadillo-export-data' && e.newValue) {
+      if (e.key?.startsWith('armadillo-export-data') && e.newValue) {
         try {
-          const exportData = JSON.parse(e.newValue);
           const profile = getUserProfile();
-          setMediaKit(prev => {
-            if (!prev) return prev;
-            return populateFromExportData(prev, exportData, profile.userType);
-          });
+          const { exportData, photos } = loadAllPlatformData(profile.selectedPlatforms);
+          if (exportData) {
+            setMediaKit(prev => {
+              if (!prev) return prev;
+              return populateFromExportData(prev, exportData as Parameters<typeof populateFromExportData>[1], profile.userType);
+            });
+            setAvailablePhotos(photos);
+          }
         } catch { /* ignore */ }
       }
     };
@@ -145,6 +171,8 @@ export default function MediaKitPage() {
 
   if (!loaded || !mediaKit) return null;
 
+  const profile = getUserProfile();
+  const primaryPlatform = profile.selectedPlatforms[0] || 'instagram';
   const subtitle = MEDIA_KIT_SUBTITLES[mediaKit.userType] || 'Media Kit';
 
   return (
@@ -191,7 +219,7 @@ export default function MediaKitPage() {
           <div>
             <span className="text-sm text-burnt font-medium">No analytics data yet.</span>
             <span className="text-sm text-armadillo-muted ml-1">
-              Visit your <a href="/instagram" className="text-burnt underline">Instagram dashboard</a> to fetch live data — your metrics will automatically appear here.
+              Visit your <a href={`/${primaryPlatform}`} className="text-burnt underline">{PLATFORM_NAMES[primaryPlatform] || 'platform'} dashboard</a> to fetch live data — your metrics will automatically appear here.
             </span>
           </div>
         </div>
