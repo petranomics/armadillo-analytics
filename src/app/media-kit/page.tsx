@@ -10,9 +10,19 @@ import {
   type MediaKitData,
   DEFAULT_OFFERINGS,
 } from '@/lib/media-kit';
+import { USER_TYPES } from '@/lib/user-types';
 import MediaKitForm from '@/components/media-kit/MediaKitForm';
 import OneSheet from '@/components/media-kit/OneSheet';
-import { Save, CheckCircle, Download, Loader2, Link2 } from 'lucide-react';
+import { Save, CheckCircle, Download, Loader2, Link2, AlertCircle, Lightbulb } from 'lucide-react';
+
+const MEDIA_KIT_SUBTITLES: Record<string, string> = {
+  'influencer': 'Influencer One-Sheet',
+  'linkedin-creator': 'LinkedIn Creator Kit',
+  'tiktok-shop': 'TikTok Shop Media Kit',
+  'youtuber': 'YouTuber Media Kit',
+  'local-business': 'Business Media Kit',
+  'media-outlet': 'Media Outlet Kit',
+};
 
 export default function MediaKitPage() {
   const router = useRouter();
@@ -64,6 +74,24 @@ export default function MediaKitPage() {
     setMediaKit(kit);
     setLoaded(true);
   }, [router]);
+
+  // Listen for export data updates from other tabs
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'armadillo-export-data' && e.newValue) {
+        try {
+          const exportData = JSON.parse(e.newValue);
+          const profile = getUserProfile();
+          setMediaKit(prev => {
+            if (!prev) return prev;
+            return populateFromExportData(prev, exportData, profile.userType);
+          });
+        } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const handleChange = useCallback((updates: Partial<MediaKitData>) => {
     setMediaKit(prev => {
@@ -117,6 +145,8 @@ export default function MediaKitPage() {
 
   if (!loaded || !mediaKit) return null;
 
+  const subtitle = MEDIA_KIT_SUBTITLES[mediaKit.userType] || 'Media Kit';
+
   return (
     <div className="max-w-7xl mx-auto">
       {/* Header */}
@@ -124,13 +154,13 @@ export default function MediaKitPage() {
         <div>
           <h1 className="font-display text-3xl text-armadillo-text">Media Kit Builder</h1>
           <p className="text-sm text-armadillo-muted mt-1">
-            Create a professional one-sheet to share with brands
+            {subtitle} &mdash; create a professional one-sheet to share with brands
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-text px-4 py-2 rounded-lg text-xs font-medium hover:border-burnt/50 transition-colors"
+            className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-text px-5 py-2.5 rounded-lg text-xs font-medium hover:border-burnt/50 hover:shadow-md transition-all"
           >
             {saved ? <CheckCircle size={14} className="text-success" /> : <Save size={14} />}
             {saved ? 'Saved!' : 'Save'}
@@ -138,14 +168,14 @@ export default function MediaKitPage() {
           <button
             onClick={handleExportPDF}
             disabled={exporting}
-            className="flex items-center gap-2 bg-burnt hover:bg-burnt-light disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors"
+            className="flex items-center gap-2 bg-burnt hover:bg-burnt-light disabled:opacity-50 text-white px-5 py-2.5 rounded-lg text-xs font-medium hover:shadow-md transition-all"
           >
             {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             {exporting ? 'Generating...' : 'Export PDF'}
           </button>
           <button
             disabled
-            className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-muted px-4 py-2 rounded-lg text-xs opacity-50 cursor-not-allowed"
+            className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-muted px-5 py-2.5 rounded-lg text-xs opacity-50 cursor-not-allowed"
             title="Coming soon -- share your media kit as a web link"
           >
             <Link2 size={14} />
@@ -153,6 +183,19 @@ export default function MediaKitPage() {
           </button>
         </div>
       </div>
+
+      {/* No data banner */}
+      {loaded && mediaKit && mediaKit.stats.followers === 0 && (
+        <div className="bg-burnt/10 border border-burnt/30 rounded-lg px-4 py-3 mb-4 flex items-center gap-2">
+          <AlertCircle size={16} className="text-burnt shrink-0" />
+          <div>
+            <span className="text-sm text-burnt font-medium">No analytics data yet.</span>
+            <span className="text-sm text-armadillo-muted ml-1">
+              Visit your <a href="/instagram" className="text-burnt underline">Instagram dashboard</a> to fetch live data — your metrics will automatically appear here.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Mobile tab toggle */}
       <div className="flex lg:hidden gap-1 mb-4 bg-armadillo-card border border-armadillo-border rounded-lg p-1">
@@ -174,10 +217,18 @@ export default function MediaKitPage() {
         </button>
       </div>
 
+      {/* Tip box */}
+      <div className="bg-armadillo-card border border-armadillo-border rounded-lg px-4 py-2.5 mb-4 flex items-start gap-2">
+        <Lightbulb size={14} className="text-burnt shrink-0 mt-0.5" />
+        <p className="text-[11px] text-armadillo-muted leading-relaxed">
+          <span className="text-armadillo-text font-medium">Tip:</span> Fill in as much detail as possible. Brands prefer complete media kits with audience data and professional photos.
+        </p>
+      </div>
+
       {/* Split layout */}
       <div className="flex gap-6">
         {/* Form (left) */}
-        <div className={`w-full lg:w-[55%] ${activeTab === 'preview' ? 'hidden lg:block' : ''}`}>
+        <div className={`w-full lg:w-[52%] ${activeTab === 'preview' ? 'hidden lg:block' : ''}`}>
           <MediaKitForm
             mediaKit={mediaKit}
             onChange={handleChange}
@@ -186,7 +237,7 @@ export default function MediaKitPage() {
         </div>
 
         {/* Preview (right) */}
-        <div className={`w-full lg:w-[45%] ${activeTab === 'edit' ? 'hidden lg:block' : ''}`}>
+        <div className={`w-full lg:w-[48%] ${activeTab === 'edit' ? 'hidden lg:block' : ''}`}>
           <div className="sticky top-6">
             <div className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">
               Live Preview

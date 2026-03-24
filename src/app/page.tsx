@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile, type UserProfile } from '@/lib/store';
 import { USER_TYPES, ALL_METRICS, type MetricDefinition, type MetricCategory, CATEGORY_LABELS } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
-import { getMockValue, getAIOneLiner } from '@/lib/ai-insights';
-import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, ArrowRight, Loader2 } from 'lucide-react';
+import { getAIOneLiner } from '@/lib/ai-insights';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, ArrowRight, AlertCircle } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import type { Post } from '@/lib/types';
 
 const EngagementBreakdown = dynamic(() => import('@/components/charts/EngagementBreakdown'), { ssr: false });
 const EngagementTrend = dynamic(() => import('@/components/charts/EngagementTrend'), { ssr: false });
@@ -27,13 +28,89 @@ interface LiveMetrics {
     postCount: number;
 }
 
+interface ExportData {
+    profile: { followers: number; [key: string]: unknown };
+    posts: Post[];
+    summary: { avgEngagementRate: number; [key: string]: unknown };
+    computedMetrics: {
+        totalLikes: number;
+        totalComments: number;
+        totalShares: number;
+        totalViews: number;
+        avgViewsPerPost: number;
+        postingFreq: string;
+        avgEngagementRate: number;
+    };
+}
+
+function loadPlatformData(platforms: string[]): { metrics: LiveMetrics | null; allPosts: Post[] } {
+    let totalLikes = 0, totalComments = 0, totalShares = 0, totalViews = 0, totalSaves = 0;
+    let followers = 0, engagementRateSum = 0, platformCount = 0, postCount = 0;
+    const allPosts: Post[] = [];
+
+    for (const platform of platforms) {
+        try {
+            const raw = localStorage.getItem(`armadillo-export-data-${platform}`);
+            if (!raw) continue;
+            const data = JSON.parse(raw) as ExportData;
+            const cm = data.computedMetrics;
+            totalLikes += cm.totalLikes;
+            totalComments += cm.totalComments;
+            totalShares += cm.totalShares;
+            totalViews += cm.totalViews;
+            followers += data.profile.followers || 0;
+            engagementRateSum += cm.avgEngagementRate;
+            postCount += data.posts?.length || 0;
+            platformCount++;
+            if (data.posts) allPosts.push(...data.posts);
+        } catch { /* ignore parse errors */ }
+    }
+
+    // Also try the generic key as fallback
+    if (platformCount === 0) {
+        try {
+            const raw = localStorage.getItem('armadillo-export-data');
+            if (raw) {
+                const data = JSON.parse(raw) as ExportData;
+                const cm = data.computedMetrics;
+                totalLikes = cm.totalLikes;
+                totalComments = cm.totalComments;
+                totalShares = cm.totalShares;
+                totalViews = cm.totalViews;
+                followers = data.profile.followers || 0;
+                engagementRateSum = cm.avgEngagementRate;
+                postCount = data.posts?.length || 0;
+                platformCount = 1;
+                if (data.posts) allPosts.push(...data.posts);
+            }
+        } catch { /* ignore */ }
+    }
+
+    if (platformCount === 0) return { metrics: null, allPosts: [] };
+
+    return {
+        metrics: {
+            totalLikes,
+            totalComments,
+            totalShares,
+            totalViews,
+            totalSaves: 0,
+            followers,
+            engagementRate: parseFloat((engagementRateSum / platformCount).toFixed(1)),
+            followerGrowth: followers,
+            postCount,
+        },
+        allPosts,
+    };
+}
+
 export default function DashboardPage() {
     const router = useRouter();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loaded, setLoaded] = useState(false);
     const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
     const [liveMetrics, setLiveMetrics] = useState<LiveMetrics | null>(null);
-    const [liveLoading, setLiveLoading] = useState(false);
+    const [allPosts, setAllPosts] = useState<Post[]>([]);
     const [isLive, setIsLive] = useState(false);
 
   useEffect(() => {
@@ -43,80 +120,32 @@ export default function DashboardPage() {
                 return;
         }
         setProfile(p);
-        // Restore cached live metrics so navigating back doesn't reset to mock
-        try {
-                const cached = localStorage.getItem('armadillo-dashboard-metrics');
-                if (cached) {
-                        setLiveMetrics(JSON.parse(cached));
-                        setIsLive(true);
-                }
-        } catch { /* ignore */ }
+        // Load cached platform data from localStorage
+        const { metrics, allPosts: posts } = loadPlatformData(p.selectedPlatforms);
+        if (metrics) {
+            setLiveMetrics(metrics);
+            setAllPosts(posts);
+            setIsLive(true);
+        }
         setLoaded(true);
   }, [router]);
 
-  // Fetch live data from scrape API
-  const fetchLiveData = useCallback(async () => {
-        if (!profile) return;
-        const platform = profile.selectedPlatforms[0];
-        const username = profile.platformUsernames[platform];
-        if (!username) return;
-
-                                        setLiveLoading(true);
-        try {
-                const res = await fetch('/api/scrape', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ platform, username }),
-                });
-                const json = await res.json();
-                if (!res.ok) throw new Error(json.error);
-
-          const results = (json.results || []).slice(0, 25);
-                if (results.length === 0) return;
-
-          const first = results[0];
-                const followers = Number(first.followersCount || first.subscribersCount || first.followers || first.userFollowersCount || 0);
-
-          let totalLikes = 0, totalComments = 0, totalShares = 0, totalViews = 0, totalSaves = 0;
-                for (const item of results) {
-                          totalLikes += Number(item.likesCount || item.likes || item.diggCount || 0);
-                          totalComments += Number(item.commentsCount || item.comments || item.commentCount || 0);
-                          totalShares += Number(item.sharesCount || item.shares || item.shareCount || 0);
-                          totalViews += Number(item.videoViewCount || item.viewCount || item.playCount || item.views || 0);
-                          totalSaves += Number(item.savesCount || item.saves || item.collectCount || 0);
-                }
-
-          const totalEng = totalLikes + totalComments + totalShares;
-                const engagementRate = followers > 0 ? parseFloat(((totalEng / (followers * results.length)) * 100).toFixed(1)) : 0;
-
-          const metrics = {
-                    totalLikes,
-                    totalComments,
-                    totalShares,
-                    totalViews,
-                    totalSaves,
-                    followers,
-                    engagementRate,
-                    followerGrowth: followers,
-                    postCount: results.length,
-          };
-          setLiveMetrics(metrics);
-                setIsLive(true);
-                // Cache so navigating away and back retains live data
-                try { localStorage.setItem('armadillo-dashboard-metrics', JSON.stringify(metrics)); } catch { /* ignore */ }
-        } catch {
-                // Silently fall back to mock data
-        } finally {
-                setLiveLoading(false);
-        }
-  }, [profile]);
-
-  // Auto-fetch on mount
+  // Listen for export data updates from platform pages (same or other tabs)
   useEffect(() => {
-        if (loaded && profile) {
-                fetchLiveData();
+    if (!profile) return;
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.startsWith('armadillo-export-data') && e.newValue) {
+        const { metrics, allPosts: posts } = loadPlatformData(profile.selectedPlatforms);
+        if (metrics) {
+            setLiveMetrics(metrics);
+            setAllPosts(posts);
+            setIsLive(true);
         }
-  }, [loaded, profile, fetchLiveData]);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [profile]);
 
   if (!loaded || !profile) return null;
 
@@ -140,10 +169,10 @@ export default function DashboardPage() {
         setExpandedMetric(prev => prev === id ? null : id);
   };
 
-  // Helper to get metric value from live data or mock
-  // NOTE: Only returns real scraped data. Metrics not available from public scraping show '--'.
+  // Helper to get metric value from live data
+  // Returns '--' when no data is available instead of fake numbers
   function getMetricValue(metric: MetricDefinition): { value: string; trend: number; raw: number } {
-        if (!liveMetrics) return getMockValue(metric);
+        if (!liveMetrics) return { value: '--', trend: 0, raw: 0 };
 
       const formatNum = (n: number) => {
               if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -177,7 +206,7 @@ export default function DashboardPage() {
                   // Not available from public scraping
                   return { value: '--', trend: 0, raw: 0 };
         default:
-                  return getMockValue(metric);
+                  return { value: '--', trend: 0, raw: 0 };
       }
   }
 
@@ -188,8 +217,7 @@ export default function DashboardPage() {
                       <div>
                                 <div className="flex items-center gap-3">
                                             <h1 className="font-display text-3xl text-armadillo-text">Dashboard</h1>
-                                  {liveLoading && <Loader2 size={16} className="text-burnt animate-spin" />}
-                                  {isLive && !liveLoading && (
+                                  {isLive && (
                         <span className="flex items-center gap-1.5 text-[10px] text-success bg-success/10 px-2 py-0.5 rounded-full">
                                         <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" /> Live
                         </span>
@@ -203,13 +231,13 @@ export default function DashboardPage() {
                                 <button className="w-9 h-9 rounded-lg bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted hover:text-armadillo-text transition-colors">
                                             <Bell size={16} />
                                 </button>
-                                <button
-                                              onClick={fetchLiveData}
-                                              disabled={liveLoading}
-                                              className="w-9 h-9 rounded-lg bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted hover:text-armadillo-text transition-colors disabled:opacity-50"
+                                <Link
+                                              href={`/${profile.selectedPlatforms[0]}`}
+                                              className="w-9 h-9 rounded-lg bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted hover:text-armadillo-text transition-colors"
+                                              title="Go to platform dashboard to refresh data"
                                             >
-                                            <RefreshCw size={16} className={liveLoading ? 'animate-spin' : ''} />
-                                </button>
+                                            <RefreshCw size={16} />
+                                </Link>
                       </div>
               </div>
         
@@ -293,13 +321,30 @@ export default function DashboardPage() {
         })}
               </div>
         
+          {/* No data banner */}
+          {!isLive && (
+              <div className="bg-burnt/10 border border-burnt/30 rounded-lg px-4 py-3 mb-6 flex items-center gap-2">
+                  <AlertCircle size={16} className="text-burnt shrink-0" />
+                  <div>
+                      <span className="text-sm text-burnt font-medium">No live data yet.</span>
+                      <span className="text-sm text-armadillo-muted ml-1">
+                          Visit your{' '}
+                          <Link href={`/${profile.selectedPlatforms[0]}`} className="text-burnt underline">
+                              {PLATFORM_NAMES[profile.selectedPlatforms[0]]} dashboard
+                          </Link>{' '}
+                          to fetch live data — your metrics will automatically appear here.
+                      </span>
+                  </div>
+              </div>
+          )}
+
           {/* Charts */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                      <EngagementBreakdown />
-                      <EngagementTrend />
+                      <EngagementBreakdown realData={liveMetrics ? { likes: liveMetrics.totalLikes, comments: liveMetrics.totalComments, shares: liveMetrics.totalShares, saves: liveMetrics.totalSaves } : undefined} />
+                      <EngagementTrend posts={allPosts.length > 0 ? allPosts : undefined} />
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                      <PeakHours />
+                      <PeakHours posts={allPosts.length > 0 ? allPosts : undefined} />
                 {hasVideoMetrics && <WatchDuration />}
               </div>
         

@@ -158,6 +158,43 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                 }
     }, [settingsLoaded, platform, settings.usernames, fetchLiveData]);
 
+    // Auto-save export snapshot so Media Kit always has fresh stats
+    useEffect(() => {
+        if (!liveData) return;
+        const { profile: lp, posts: lPosts, summary: lSummary } = liveData;
+        const tLikes = lPosts.reduce((s, p) => s + p.metrics.likes, 0);
+        const tComments = lPosts.reduce((s, p) => s + p.metrics.comments, 0);
+        const tShares = lPosts.reduce((s, p) => s + (p.metrics.shares || 0), 0);
+        const tViews = lPosts.reduce((s, p) => s + (p.metrics.views || 0), 0);
+        const avgVPP = lPosts.length > 0 && tViews > 0 ? Math.round(tViews / lPosts.length) : 0;
+        const pDates = lPosts.map(p => new Date(p.publishedAt).getTime()).filter(t => !isNaN(t)).sort((a, b) => a - b);
+        let pFreq = '';
+        if (pDates.length >= 2) {
+            const rangeDays = (pDates[pDates.length - 1] - pDates[0]) / (1000 * 60 * 60 * 24);
+            if (rangeDays > 0) {
+                const perWeek = (lPosts.length / rangeDays) * 7;
+                pFreq = `~${perWeek.toFixed(1)}/week`;
+            }
+        }
+        const exportPayload = {
+            profile: lp,
+            posts: lPosts,
+            summary: lSummary,
+            computedMetrics: {
+                totalLikes: tLikes,
+                totalComments: tComments,
+                totalShares: tShares,
+                totalViews: tViews,
+                avgViewsPerPost: avgVPP,
+                postingFreq: pFreq,
+                avgEngagementRate: lSummary.avgEngagementRate,
+            },
+            exportedAt: new Date().toISOString(),
+        };
+        localStorage.setItem('armadillo-export-data', JSON.stringify(exportPayload));
+        localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(exportPayload));
+    }, [liveData, platform]);
+
     const totalLikes = posts.reduce((sum, p) => sum + p.metrics.likes, 0);
         const totalComments = posts.reduce((sum, p) => sum + p.metrics.comments, 0);
         const totalShares = posts.reduce((sum, p) => sum + (p.metrics.shares || 0), 0);

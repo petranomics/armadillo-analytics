@@ -1,15 +1,17 @@
 'use client';
 
 import { useRef } from 'react';
-import { Check, ImageIcon, Upload, Trash2 } from 'lucide-react';
+import { Check, ImageIcon, Upload, Trash2, X } from 'lucide-react';
 
 interface PhotoPickerProps {
   availablePhotos: string[];
   uploadedPhotos: string[];
   headerPhotoUrl: string;
   galleryPhotoUrls: string[];
+  coverPhotoUrl: string;
   onSetHeaderPhoto: (url: string) => void;
   onToggleGalleryPhoto: (url: string) => void;
+  onSetCoverPhoto: (url: string) => void;
   onUploadPhotos: (dataUrls: string[]) => void;
   onRemoveUploadedPhoto: (dataUrl: string) => void;
 }
@@ -19,8 +21,10 @@ export default function PhotoPicker({
   uploadedPhotos,
   headerPhotoUrl,
   galleryPhotoUrls,
+  coverPhotoUrl,
   onSetHeaderPhoto,
   onToggleGalleryPhoto,
+  onSetCoverPhoto,
   onUploadPhotos,
   onRemoveUploadedPhoto,
 }: PhotoPickerProps) {
@@ -49,7 +53,6 @@ export default function PhotoPicker({
       onUploadPhotos(dataUrls);
     });
 
-    // Reset input so the same file can be re-selected
     e.target.value = '';
   };
 
@@ -83,6 +86,49 @@ export default function PhotoPicker({
         </div>
       ) : (
         <>
+          {/* Cover photo selection */}
+          <div>
+            <label className="text-[10px] text-armadillo-muted uppercase tracking-wider font-medium block mb-1.5">
+              Cover Photo
+            </label>
+            <p className="text-[10px] text-armadillo-muted/70 mb-1.5">Banner image for the top of your one-sheet</p>
+            {coverPhotoUrl && (
+              <div className="relative mb-2">
+                <img
+                  src={coverPhotoUrl}
+                  alt="Cover"
+                  className="w-full rounded-lg object-cover"
+                  style={{ aspectRatio: '16/9', maxHeight: '80px' }}
+                />
+                <button
+                  onClick={() => onSetCoverPhoto('')}
+                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center transition-colors"
+                >
+                  <X size={10} className="text-white" />
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {allPhotos.slice(0, 12).map((url, i) => (
+                <button
+                  key={`cover-${i}`}
+                  onClick={() => onSetCoverPhoto(url)}
+                  className={`relative shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
+                    coverPhotoUrl === url ? 'border-burnt' : 'border-armadillo-border hover:border-armadillo-muted'
+                  }`}
+                  style={{ width: '72px', height: '40px' }}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                  {coverPhotoUrl === url && (
+                    <div className="absolute inset-0 bg-burnt/30 flex items-center justify-center">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Header photo selection */}
           <div>
             <label className="text-[10px] text-armadillo-muted uppercase tracking-wider font-medium block mb-1.5">

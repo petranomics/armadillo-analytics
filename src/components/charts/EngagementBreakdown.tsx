@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { mockEngagementBreakdown } from '@/lib/mock-data';
-
 function formatNumber(n: number): string {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
@@ -17,25 +15,39 @@ const ENGAGEMENT_COLORS: Record<string, string> = {
   Saves: '#8C3F00',
 };
 
-const data = [
-  { name: 'Likes', value: mockEngagementBreakdown.likes },
-  { name: 'Comments', value: mockEngagementBreakdown.comments },
-  { name: 'Shares', value: mockEngagementBreakdown.shares },
-  { name: 'Saves', value: mockEngagementBreakdown.saves },
-].filter(d => d.value > 0);
+interface EngagementBreakdownProps {
+  realData?: { likes: number; comments: number; shares: number; saves: number };
+}
 
-const total = data.reduce((s, d) => s + d.value, 0);
-
-export default function EngagementBreakdown() {
+export default function EngagementBreakdown({ realData }: EngagementBreakdownProps) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
+  if (!realData) {
+    return (
+      <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
+        <h3 className="text-xs font-semibold text-armadillo-text uppercase tracking-wider mb-3">Engagement Breakdown</h3>
+        <div className="flex items-center justify-center h-[130px] text-sm text-armadillo-muted">
+          No data yet — fetch your analytics to see this chart
+        </div>
+      </div>
+    );
+  }
+
+  const data = [
+    { name: 'Likes', value: realData.likes },
+    { name: 'Comments', value: realData.comments },
+    { name: 'Shares', value: realData.shares },
+    { name: 'Saves', value: realData.saves },
+  ].filter(d => d.value > 0);
+
+  const total = data.reduce((s, d) => s + d.value, 0);
   const focused = activeIndex !== null ? data[activeIndex] : null;
 
   return (
     <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-semibold text-armadillo-text uppercase tracking-wider">Engagement Breakdown</h3>
-        <span className="text-[10px] text-armadillo-muted">All platforms</span>
+        <span className="text-[10px] text-armadillo-muted">Live data</span>
       </div>
 
       <div className="flex items-center gap-3">
