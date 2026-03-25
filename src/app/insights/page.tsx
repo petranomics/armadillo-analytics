@@ -40,7 +40,7 @@ export default function InsightsPage() {
     const router = useRouter();
     const [profile, setProfile] = useState<UserProfile | null>(null);
     const [loaded, setLoaded] = useState(false);
-    const [activeTab, setActiveTab] = useState<'ai' | 'posts' | 'trends' | 'audience'>('posts');
+    const [activeTab, setActiveTab] = useState<'ai' | 'posts' | 'trends'>('posts');
     const [expandedSection, setExpandedSection] = useState<number | null>(null);
 
   // Live data state
@@ -214,7 +214,6 @@ export default function InsightsPage() {
     { key: 'ai', label: 'AI Analysis', locked: !isPro },
     { key: 'posts', label: 'Posts' },
     { key: 'trends', label: 'Trends' },
-    { key: 'audience', label: 'Audience', locked: !isPro },
       ];
 
   return (
@@ -699,33 +698,6 @@ export default function InsightsPage() {
                   </div>
               )}
 
-          {/* Audience Tab */}
-          {activeTab === 'audience' && (
-                  <div>
-                    {!isPro ? (
-                                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
-                                              <div className="w-16 h-16 rounded-full bg-burnt/15 flex items-center justify-center mx-auto mb-4">
-                                                              <Lock size={28} className="text-burnt" />
-                                              </div>
-                                              <h2 className="font-display text-2xl text-armadillo-text mb-2">Audience Demographics</h2>
-                                              <p className="text-armadillo-muted mb-6 max-w-md mx-auto">
-                                                              Upgrade to Pro to unlock detailed audience demographics, including gender, age, location, and active hours.
-                                              </p>
-                                              <button onClick={() => router.push('/settings')} className="bg-burnt hover:bg-burnt-light text-white px-6 py-3 rounded-xl font-medium transition-colors">
-                                                              Upgrade to Pro
-                                              </button>
-                                </div>
-                              ) : (
-                                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
-                                  <Lock size={32} className="text-armadillo-muted/40 mx-auto mb-4" />
-                                  <h2 className="font-display text-xl text-armadillo-text mb-3">Audience Demographics Unavailable</h2>
-                                  <p className="text-sm text-armadillo-muted max-w-lg mx-auto">
-                                    Audience demographics (age, gender, location, and active hours) require authenticated Instagram Business API access and are not available from public scraping.
-                                  </p>
-                                </div>
-                            )}
-                  </div>
-              )}
         </div>
       );
 }
