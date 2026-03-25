@@ -28,7 +28,8 @@ const MEDIA_KIT_SUBTITLES: Record<string, string> = {
 /** Load export data from all connected platforms, merging posts & photos */
 function loadAllPlatformData(platforms: string[]) {
   const allPhotos: string[] = [];
-  let bestExportData: { data: Record<string, unknown>; postCount: number } | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let bestExportData: { data: any; postCount: number } | null = null;
 
   for (const platform of platforms) {
     for (const key of [`armadillo-export-data-${platform}`, 'armadillo-export-data']) {
@@ -79,7 +80,7 @@ export default function MediaKitPage() {
     // Auto-populate from all connected platform data
     const { exportData, photos } = loadAllPlatformData(profile.selectedPlatforms);
     if (exportData) {
-      kit = populateFromExportData(kit, exportData as Parameters<typeof populateFromExportData>[1], profile.userType);
+      kit = populateFromExportData(kit, exportData, profile.userType);
     }
     setAvailablePhotos(photos);
 
@@ -108,7 +109,7 @@ export default function MediaKitPage() {
           if (exportData) {
             setMediaKit(prev => {
               if (!prev) return prev;
-              return populateFromExportData(prev, exportData as Parameters<typeof populateFromExportData>[1], profile.userType);
+              return populateFromExportData(prev, exportData, profile.userType);
             });
             setAvailablePhotos(photos);
           }
