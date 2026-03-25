@@ -211,7 +211,7 @@ export default function InsightsPage() {
     const posts = livePosts || [];
 
   const tabs: { key: typeof activeTab; label: string; locked?: boolean }[] = [
-    { key: 'ai', label: 'AI Analysis', locked: !isPro },
+    { key: 'ai', label: 'AI Analysis' },
     { key: 'posts', label: 'Posts' },
     { key: 'trends', label: 'Trends' },
       ];
@@ -247,7 +247,7 @@ export default function InsightsPage() {
               </div>
         
           {/* AI Analysis Tab */}
-          {activeTab === 'ai' && isPro && (
+          {activeTab === 'ai' && (
                   <div className="space-y-4">
                             <div className="bg-gradient-to-r from-burnt/20 to-burnt/5 border border-burnt/30 rounded-2xl p-6">
                                         <div className="flex items-center justify-between">
@@ -349,20 +349,6 @@ export default function InsightsPage() {
                   </div>
               )}
         
-          {activeTab === 'ai' && !isPro && (
-                  <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-12 text-center">
-                            <div className="w-16 h-16 rounded-full bg-burnt/15 flex items-center justify-center mx-auto mb-4">
-                                        <Lock size={28} className="text-burnt" />
-                            </div>
-                            <h2 className="font-display text-2xl text-armadillo-text mb-2">AI Analysis is a Pro Feature</h2>
-                            <p className="text-armadillo-muted mb-6 max-w-md mx-auto">
-                                        Unlock AI-powered analytics writeups, content recommendations, and growth strategies tailored to your account.
-                            </p>
-                            <button onClick={() => router.push('/settings')} className="bg-burnt hover:bg-burnt-light text-white px-6 py-3 rounded-xl font-medium transition-colors">
-                                        Upgrade to Pro
-                            </button>
-                  </div>
-              )}
         
           {/* Posts Tab - now uses live data */}
           {activeTab === 'posts' && (

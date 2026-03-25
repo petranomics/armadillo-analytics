@@ -181,9 +181,7 @@ export default function InsightsPage() {
   const isPro = profile.plan === 'pro';
   const isLiteOrAbove = profile.plan === 'lite' || profile.plan === 'pro';
 
-  const tabs = isPro
-    ? (['ai', 'posts', 'trends'] as const)
-    : (['posts', 'trends'] as const);
+  const tabs = (['ai', 'posts', 'trends'] as const);
 
   const anyTrendLoading = Object.values(trendLoading).some(Boolean);
 
@@ -216,7 +214,7 @@ export default function InsightsPage() {
       </div>
 
       {/* AI Analysis Tab (Pro only) */}
-      {activeTab === 'ai' && isPro && (
+      {activeTab === 'ai' && (
         <div className="px-5 space-y-3">
           <div className="bg-gradient-to-br from-burnt/20 to-burnt/5 border border-burnt/30 rounded-2xl p-4">
             <div className="flex items-center justify-between">
