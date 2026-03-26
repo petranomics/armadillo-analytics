@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { Check, ImageIcon, Upload, Trash2, X } from 'lucide-react';
+import { toDataUrl } from '@/lib/image-cache';
 
 interface PhotoPickerProps {
   availablePhotos: string[];
@@ -31,6 +32,28 @@ export default function PhotoPicker({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allPhotos = [...uploadedPhotos, ...availablePhotos];
+
+  // Convert external URLs to data URLs before setting, so they persist
+  const handleSetHeader = useCallback(async (url: string) => {
+    const cached = await toDataUrl(url);
+    onSetHeaderPhoto(cached);
+  }, [onSetHeaderPhoto]);
+
+  const handleSetCover = useCallback(async (url: string) => {
+    if (!url) { onSetCoverPhoto(''); return; }
+    const cached = await toDataUrl(url);
+    onSetCoverPhoto(cached);
+  }, [onSetCoverPhoto]);
+
+  const handleToggleGallery = useCallback(async (url: string) => {
+    // If already selected (removing), just pass through
+    if (galleryPhotoUrls.includes(url)) {
+      onToggleGalleryPhoto(url);
+      return;
+    }
+    const cached = await toDataUrl(url);
+    onToggleGalleryPhoto(cached);
+  }, [galleryPhotoUrls, onToggleGalleryPhoto]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -101,7 +124,7 @@ export default function PhotoPicker({
                   style={{ aspectRatio: '16/9', maxHeight: '80px' }}
                 />
                 <button
-                  onClick={() => onSetCoverPhoto('')}
+                  onClick={() => handleSetCover('')}
                   className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 hover:bg-black/80 flex items-center justify-center transition-colors"
                 >
                   <X size={10} className="text-white" />
@@ -112,7 +135,7 @@ export default function PhotoPicker({
               {allPhotos.slice(0, 12).map((url, i) => (
                 <button
                   key={`cover-${i}`}
-                  onClick={() => onSetCoverPhoto(url)}
+                  onClick={() => handleSetCover(url)}
                   className={`relative shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
                     coverPhotoUrl === url ? 'border-burnt' : 'border-armadillo-border hover:border-armadillo-muted'
                   }`}
@@ -140,7 +163,7 @@ export default function PhotoPicker({
                 return (
                   <div key={`header-${i}`} className="relative shrink-0">
                     <button
-                      onClick={() => onSetHeaderPhoto(url)}
+                      onClick={() => handleSetHeader(url)}
                       className={`relative w-14 h-14 rounded-lg overflow-hidden border-2 transition-colors ${
                         headerPhotoUrl === url ? 'border-burnt' : 'border-armadillo-border hover:border-armadillo-muted'
                       }`}
@@ -180,7 +203,7 @@ export default function PhotoPicker({
                 return (
                   <div key={`gallery-${i}`} className="relative">
                     <button
-                      onClick={() => !isFull && onToggleGalleryPhoto(url)}
+                      onClick={() => !isFull && handleToggleGallery(url)}
                       disabled={isFull}
                       className={`relative aspect-square w-full rounded-lg overflow-hidden border-2 transition-colors ${
                         isSelected

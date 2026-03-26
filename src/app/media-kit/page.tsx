@@ -10,6 +10,7 @@ import {
   type MediaKitData,
   DEFAULT_OFFERINGS,
 } from '@/lib/media-kit';
+import { toDataUrl } from '@/lib/image-cache';
 import { USER_TYPES } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import MediaKitForm from '@/components/media-kit/MediaKitForm';
@@ -94,6 +95,16 @@ export default function MediaKitPage() {
 
     // Set user type from profile
     kit.userType = profile.userType;
+
+    // Cache the auto-populated header photo so it persists after CDN expiry
+    if (kit.headerPhotoUrl && !kit.headerPhotoUrl.startsWith('data:')) {
+      toDataUrl(kit.headerPhotoUrl).then(cached => {
+        if (cached !== kit.headerPhotoUrl) {
+          kit.headerPhotoUrl = cached;
+          setMediaKit(prev => prev ? { ...prev, headerPhotoUrl: cached } : prev);
+        }
+      });
+    }
 
     setMediaKit(kit);
     setLoaded(true);
