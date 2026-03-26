@@ -14,7 +14,7 @@ import BestTimeCard from '@/components/cards/BestTimeCard';
 import CollabTrackerCard from '@/components/cards/CollabTrackerCard';
 import AudioInsightsCard from '@/components/cards/AudioInsightsCard';
 import DataTable from '@/components/ui/DataTable';
-import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database, ExternalLink, Calendar, Download } from 'lucide-react';
+import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database, ExternalLink, Calendar, Download, Loader2 } from 'lucide-react';
 
 // Metrics that are NOT available from public scraping per platform
 const UNAVAILABLE_METRICS: Record<string, string[]> = {
@@ -32,7 +32,7 @@ function formatNumber(n: number): string {
 }
 
 interface PlatformPageProps {
-        mockData: PlatformData;
+        mockData?: PlatformData;
         platform: Platform;
 }
 
@@ -42,11 +42,10 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
         const [loading, setLoading] = useState(false);
         const [error, setError] = useState<string | null>(null);
 
-    const data = liveData || mockData;
+    const data = liveData || mockData || null;
         const isLive = !!liveData;
-        const { profile, posts, summary } = data;
-        const platformName = PLATFORM_NAMES[profile.platform];
         const hasCredentials = !!settings.usernames[platform];
+        const platformName = PLATFORM_NAMES[platform];
 
     const fetchLiveData = useCallback(async () => {
                 if (!settings.usernames[platform]) return;
@@ -194,6 +193,38 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
         localStorage.setItem('armadillo-export-data', JSON.stringify(exportPayload));
         localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(exportPayload));
     }, [liveData, platform]);
+
+    // No data state — show empty state with fetch button
+    if (!data) {
+      return (
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="font-display text-2xl text-armadillo-text">{platformName}</h1>
+              <p className="text-sm text-armadillo-muted mt-1">No data yet — enter your username in Settings and fetch your analytics</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {loading ? (
+                <span className="flex items-center gap-1.5 text-xs text-burnt"><Loader2 size={14} className="animate-spin" /> Fetching...</span>
+              ) : hasCredentials ? (
+                <button onClick={fetchLiveData} className="flex items-center gap-2 bg-burnt hover:bg-burnt-light text-white px-5 py-2.5 rounded-lg text-xs font-medium transition-colors">
+                  <RefreshCw size={14} /> Fetch Data
+                </button>
+              ) : (
+                <a href="/settings" className="flex items-center gap-2 bg-burnt hover:bg-burnt-light text-white px-5 py-2.5 rounded-lg text-xs font-medium transition-colors">
+                  Add Username
+                </a>
+              )}
+            </div>
+          </div>
+          {error && (
+            <div className="bg-danger/10 border border-danger/20 rounded-xl p-4 text-sm text-danger">{error}</div>
+          )}
+        </div>
+      );
+    }
+
+    const { profile, posts, summary } = data;
 
     const totalLikes = posts.reduce((sum, p) => sum + p.metrics.likes, 0);
         const totalComments = posts.reduce((sum, p) => sum + p.metrics.comments, 0);

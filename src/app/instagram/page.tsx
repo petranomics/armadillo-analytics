@@ -2,8 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import PlatformPage from '@/components/PlatformPage';
-import { mockInstagramData } from '@/lib/mock-data';
-import { mockHashtagStats, mockHashtagPosts } from '@/lib/trend-data';
 import type { HashtagStats, HashtagPost } from '@/lib/types';
 import { Hash, TrendingUp, TrendingDown, Heart, MessageCircle, RefreshCw, Loader2 } from 'lucide-react';
 
@@ -41,11 +39,11 @@ function TrendingHashtags() {
                                       body: JSON.stringify({ source: 'instagramHashtagPosts', params: { hashtags: ['austinfood', 'atxlife'], limit: 20 } }),
                           }).then(r => r.json()),
                         ]);
-                setStats(statsRes.status === 'fulfilled' && statsRes.value.hashtagStats ? statsRes.value.hashtagStats : mockHashtagStats);
-                setPosts(postsRes.status === 'fulfilled' && postsRes.value.hashtagPosts ? postsRes.value.hashtagPosts : mockHashtagPosts);
+                setStats(statsRes.status === 'fulfilled' && statsRes.value.hashtagStats ? statsRes.value.hashtagStats : null);
+                setPosts(postsRes.status === 'fulfilled' && postsRes.value.hashtagPosts ? postsRes.value.hashtagPosts : null);
         } catch {
-                setStats(mockHashtagStats);
-                setPosts(mockHashtagPosts);
+                setStats(null);
+                setPosts(null);
         } finally {
                 setLoading(false);
         }
@@ -53,8 +51,8 @@ function TrendingHashtags() {
 
   useEffect(() => { fetchTrends(); }, [fetchTrends]);
 
-  const displayStats = stats || mockHashtagStats;
-    const displayPosts = posts || mockHashtagPosts;
+  const displayStats = stats || [];
+    const displayPosts = posts || [];
 
   return (
         <div className="space-y-4">
@@ -121,7 +119,7 @@ function TrendingHashtags() {
 export default function InstagramPage() {
     return (
           <div>
-                <PlatformPage mockData={mockInstagramData} platform="instagram" />
+                <PlatformPage platform="instagram" />
                 <div className="max-w-7xl mx-auto mt-6">
                         <TrendingHashtags />
                 </div>

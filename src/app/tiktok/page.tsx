@@ -2,8 +2,6 @@
 
 import { useState, useCallback } from 'react';
 import PlatformPage from '@/components/PlatformPage';
-import { mockTikTokData } from '@/lib/mock-data';
-import { mockTikTokTrends } from '@/lib/trend-data';
 import type { TikTokTrend } from '@/lib/types';
 import { Flame, RefreshCw, Loader2 } from 'lucide-react';
 
@@ -27,9 +25,9 @@ function TrendingInNiche() {
         body: JSON.stringify({ source: 'tiktokTrends', params: { category: 'General', maxProducts: 8 } }),
       });
       const data = await res.json();
-      setTrends(data.tiktokTrends || mockTikTokTrends);
+      setTrends(data.tiktokTrends || null);
     } catch {
-      setTrends(mockTikTokTrends);
+      setTrends(null);
     } finally {
       setLoading(false);
       setFetched(true);
@@ -74,7 +72,7 @@ function TrendingInNiche() {
         </button>
       </div>
 
-      {trends && trends.length > 0 && (
+      {trends && trends.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {trends.map((trend, i) => (
             <div key={i} className="bg-armadillo-bg rounded-lg p-3.5">
@@ -98,6 +96,8 @@ function TrendingInNiche() {
             </div>
           ))}
         </div>
+      ) : (
+        <p className="text-sm text-armadillo-muted text-center py-4">No trend data available</p>
       )}
     </div>
   );
@@ -106,7 +106,7 @@ function TrendingInNiche() {
 export default function TikTokPage() {
   return (
     <div>
-      <PlatformPage mockData={mockTikTokData} platform="tiktok" />
+      <PlatformPage platform="tiktok" />
       <div className="max-w-7xl mx-auto mt-6">
         <TrendingInNiche />
       </div>
