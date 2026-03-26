@@ -15,7 +15,8 @@ import { USER_TYPES } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import MediaKitForm from '@/components/media-kit/MediaKitForm';
 import OneSheet from '@/components/media-kit/OneSheet';
-import { Save, CheckCircle, Download, Loader2, Link2, AlertCircle, Lightbulb } from 'lucide-react';
+import { Save, CheckCircle, Download, Loader2, Link2, AlertCircle, Lightbulb, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 const MEDIA_KIT_SUBTITLES: Record<string, string> = {
   'influencer': 'Influencer One-Sheet',
@@ -192,6 +193,10 @@ export default function MediaKitPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
+          <Link href="/" className="flex items-center gap-1.5 text-xs text-armadillo-muted hover:text-burnt transition-colors mb-2">
+            <ArrowLeft size={12} />
+            Back to Dashboard
+          </Link>
           <h1 className="font-display text-3xl text-armadillo-text">Media Kit Builder</h1>
           <p className="text-sm text-armadillo-muted mt-1">
             {subtitle} &mdash; create a professional one-sheet to share with brands

@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { getUserProfile, saveUserProfile, clearUserProfile, type UserProfile } from '@/lib/store';
 import { USER_TYPES } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
-import { Save, Trash2, CheckCircle, ShieldCheck, User, Crown, RefreshCw, Hash, X, Plus } from 'lucide-react';
+import { Save, Trash2, CheckCircle, ShieldCheck, User, Crown, RefreshCw, Hash, X, Plus, Check } from 'lucide-react';
 import type { Platform } from '@/lib/types';
+import { PLATFORMS } from '@/lib/constants';
 
 const PLATFORM_PLACEHOLDERS: Record<Platform, string> = {
   tiktok: 'username (e.g. texasarmadillo)',
@@ -35,6 +36,7 @@ export default function SettingsPage() {
   const [hashtagInput, setHashtagInput] = useState('');
   const [subredditInput, setSubredditInput] = useState('');
   const [saved, setSaved] = useState(false);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
 
   useEffect(() => {
     const p = getUserProfile();
@@ -44,6 +46,7 @@ export default function SettingsPage() {
     }
     setProfile(p);
     setUsernames(p.platformUsernames);
+    setSelectedPlatforms(p.selectedPlatforms);
     setCompetitors(p.competitorAccounts);
     setTrackedHashtags(p.trackedHashtags || []);
     setTrackedSubreddits(p.trackedSubreddits || []);
@@ -59,6 +62,7 @@ export default function SettingsPage() {
   const handleSave = () => {
     const updated = {
       ...profile,
+      selectedPlatforms,
       platformUsernames: usernames,
       competitorAccounts: competitors,
       trackedHashtags,
@@ -185,12 +189,49 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Platform Usernames */}
+      {/* Connected Platforms */}
       <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6 mb-6">
-        <h2 className="text-sm font-medium text-armadillo-text mb-4">Platform Usernames</h2>
-        <p className="text-xs text-armadillo-muted mb-4">Enter one username per platform to fetch your analytics data.</p>
+        <h2 className="text-sm font-medium text-armadillo-text mb-2">Connected Platforms</h2>
+        <p className="text-xs text-armadillo-muted mb-4">Select which platforms to track and enter your username for each.</p>
+        <div className="flex flex-wrap gap-2 mb-5">
+          {PLATFORMS.map((p) => {
+            const isSelected = selectedPlatforms.includes(p);
+            return (
+              <button
+                key={p}
+                onClick={() => {
+                  if (isSelected) {
+                    if (selectedPlatforms.length <= 1) return; // keep at least one
+                    setSelectedPlatforms(selectedPlatforms.filter(x => x !== p));
+                  } else {
+                    setSelectedPlatforms([...selectedPlatforms, p]);
+                  }
+                }}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium border transition-all ${
+                  isSelected
+                    ? 'border-burnt bg-burnt/10 text-burnt'
+                    : 'border-armadillo-border text-armadillo-muted hover:border-armadillo-muted'
+                }`}
+              >
+                <span
+                  className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
+                  style={{
+                    backgroundColor: isSelected ? `var(--color-platform-${p})` : '#555',
+                    color: p === 'tiktok' && isSelected ? '#000' : '#fff',
+                  }}
+                >
+                  {PLATFORM_NAMES[p].charAt(0)}
+                </span>
+                {PLATFORM_NAMES[p]}
+                {isSelected && <Check size={12} />}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Usernames for selected platforms */}
         <div className="space-y-4">
-          {profile.selectedPlatforms.map((platform) => (
+          {selectedPlatforms.map((platform) => (
             <div key={platform}>
               <label className="flex items-center gap-2 text-xs font-medium text-armadillo-muted mb-1.5">
                 <span
