@@ -58,14 +58,15 @@ function InsightBadge({ value, label, color, large }: { value: string; label: st
 }
 
 function ContentTypeBars({ data, accent, large }: { data: { type: string; avgEng: number }[]; accent: string; large?: boolean }) {
-  const max = Math.max(...data.map(t => t.avgEng), 1);
+  const limited = data.slice(0, 3);
+  const max = Math.max(...limited.map(t => t.avgEng), 1);
   return (
     <div>
       <div style={{ fontSize: large ? '7.5px' : '7px', color: '#999', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px', fontWeight: 600 }}>
         Avg Engagement by Content Type
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: large ? '5px' : '4px' }}>
-        {data.map((t, i) => (
+        {limited.map((t, i) => (
           <div key={t.type} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: large ? '8px' : '7px', color: '#666', width: '56px', textAlign: 'right', fontWeight: 500, flexShrink: 0 }}>{t.type}</span>
             <div style={{ flex: 1, height: large ? '14px' : '11px', background: '#f5f5f5', borderRadius: '7px', overflow: 'hidden' }}>
@@ -271,7 +272,8 @@ export default function OneSheet({ mediaKit }: OneSheetProps) {
       if (key === 'engagementRate') return true;
       if (key === 'postingFreq') return !!val;
       return Number(val) > 0;
-    });
+    })
+    .slice(0, 8); // Max 8 stats (2 rows of 4)
 
   // ========================
   // PROFESSIONAL LAYOUT (LinkedIn, Media Outlet)
@@ -567,18 +569,19 @@ export default function OneSheet({ mediaKit }: OneSheetProps) {
             </div>
           )}
 
-          {/* Insights */}
+          {/* Insights — compact */}
           {hasAnyInsights && (
-            <div style={{ background: '#fff', borderRadius: '12px', padding: '10px 14px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0' }}>
-              <SectionLabel>Social Performance</SectionLabel>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <EngagementDonut rate={mediaKit.stats.engagementRate} accent={accent} size={72} />
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', gap: '5px' }}>
-                    {hasBestDay && <InsightBadge large value={mediaKit.bestPostingDay!.day} label="Best Day" color={accent} />}
-                    {hasEngTrend && <InsightBadge large value={`${mediaKit.engagementTrend! >= 0 ? '↑' : '↓'} ${Math.abs(mediaKit.engagementTrend!)}%`} label="Eng. Trend" color={mediaKit.engagementTrend! >= 0 ? '#22C55E' : '#EF4444'} />}
+            <div style={{ background: '#fff', borderRadius: '10px', padding: '8px 12px', boxShadow: '0 1px 8px rgba(0,0,0,0.04)', border: '1px solid #f0f0f0' }}>
+              <SectionLabel>Performance Insights</SectionLabel>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                <EngagementDonut rate={mediaKit.stats.engagementRate} accent={accent} size={60} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {hasViralityScore && <InsightBadge value={`${mediaKit.viralityScore}%`} label="Virality" color={accent} />}
+                    {hasBestDay && <InsightBadge value={mediaKit.bestPostingDay!.day} label="Best Day" color={accent} />}
+                    {hasEngTrend && <InsightBadge value={`${mediaKit.engagementTrend! >= 0 ? '↑' : '↓'} ${Math.abs(mediaKit.engagementTrend!)}%`} label="Eng. Trend" color={mediaKit.engagementTrend! >= 0 ? '#22C55E' : '#EF4444'} />}
                   </div>
-                  {hasTypePerf && <ContentTypeBars data={mediaKit.contentTypePerformance!} accent={accent} large />}
+                  {hasTypePerf && <ContentTypeBars data={mediaKit.contentTypePerformance!} accent={accent} />}
                 </div>
               </div>
             </div>
@@ -666,24 +669,24 @@ export default function OneSheet({ mediaKit }: OneSheetProps) {
           </div>
         )}
 
-        {/* Insights — expanded */}
+        {/* Insights — compact */}
         {hasAnyInsights && (
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '12px 14px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', border: '1px solid #f0f0f0' }}>
+          <div style={{ background: '#fff', borderRadius: '10px', padding: '8px 12px', boxShadow: '0 1px 8px rgba(0,0,0,0.04)', border: '1px solid #f0f0f0' }}>
             <SectionLabel>Performance Insights</SectionLabel>
-            <div style={{ display: 'flex', gap: '14px' }}>
-              <div style={{ flex: '0 0 30%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                <EngagementDonut rate={mediaKit.stats.engagementRate} accent={accent} size={76} />
-                {hasViralityScore && <InsightBadge large value={mediaKit.viralityScore! >= 100 ? (mediaKit.viralityScore! / 100).toFixed(1) + 'x' : mediaKit.viralityScore + '%'} label="Virality Score" color={accent} />}
-                {hasEngTrend && <InsightBadge large value={`${mediaKit.engagementTrend! >= 0 ? '↑' : '↓'} ${Math.abs(mediaKit.engagementTrend!)}%`} label="Eng. Trend" color={mediaKit.engagementTrend! >= 0 ? '#22C55E' : '#EF4444'} />}
-                {hasBestDay && <InsightBadge large value={mediaKit.bestPostingDay!.day} label="Best Day" color={accent} />}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <EngagementDonut rate={mediaKit.stats.engagementRate} accent={accent} size={64} />
+                {hasViralityScore && <InsightBadge value={mediaKit.viralityScore! >= 100 ? (mediaKit.viralityScore! / 100).toFixed(1) + 'x' : mediaKit.viralityScore + '%'} label="Virality" color={accent} />}
+                {hasEngTrend && <InsightBadge value={`${mediaKit.engagementTrend! >= 0 ? '↑' : '↓'} ${Math.abs(mediaKit.engagementTrend!)}%`} label="Eng. Trend" color={mediaKit.engagementTrend! >= 0 ? '#22C55E' : '#EF4444'} />}
+                {hasBestDay && <InsightBadge value={mediaKit.bestPostingDay!.day} label="Best Day" color={accent} />}
               </div>
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {hasTypePerf && <ContentTypeBars data={mediaKit.contentTypePerformance!} accent={accent} large />}
-                {hasContentMix && <ContentMixBar data={mediaKit.contentMix!} large />}
-                {hasTopHashtags && <HashtagPills data={mediaKit.topHashtags!} accent={accent} large />}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {hasTypePerf && <ContentTypeBars data={mediaKit.contentTypePerformance!} accent={accent} />}
+                {hasContentMix && <ContentMixBar data={mediaKit.contentMix!} />}
+                {hasTopHashtags && <HashtagPills data={mediaKit.topHashtags!} accent={accent} />}
               </div>
             </div>
-            {hasCollabLift && <CollabLiftBar data={mediaKit.collabLift!} accent={accent} large />}
+            {hasCollabLift && <CollabLiftBar data={mediaKit.collabLift!} accent={accent} />}
           </div>
         )}
 
