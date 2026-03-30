@@ -151,12 +151,57 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                 }
     }, [platform, settings.usernames]);
 
-    // Auto-fetch live data when component mounts and credentials exist
+    // Load cached data from localStorage on mount so page shows instantly
     useEffect(() => {
-                if (settingsLoaded && settings.usernames[platform]) {
-                                fetchLiveData();
+        if (!settingsLoaded) return;
+        try {
+            const cached = localStorage.getItem(`armadillo-export-data-${platform}`) || localStorage.getItem('armadillo-export-data');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (parsed.profile && parsed.posts) {
+                    const cachedPosts: Post[] = parsed.posts.slice(0, 25).map((item: Record<string, unknown>, i: number) => {
+                        const metrics = transformMetrics(platform, item);
+                        const totalEng = metrics.likes + metrics.comments + (metrics.shares || 0);
+                        const followers = Number(item.followersCount || item.subscribersCount || item.followers || parsed.profile.followers || 1);
+                        return {
+                            id: `${platform}-cached-${i}`,
+                            platform,
+                            url: String(item.url || item.postUrl || '#'),
+                            caption: String(item.caption || item.text || item.title || item.description || ''),
+                            thumbnailUrl: String(item.displayUrl || item.thumbnailUrl || ''),
+                            contentType: String(item.type || item.productType || item.contentType || 'Image'),
+                            hashtags: Array.isArray(item.hashtags) ? (item.hashtags as string[]) : [],
+                            mentions: Array.isArray(item.mentions) ? (item.mentions as string[]) : [],
+                            publishedAt: String(item.timestamp || item.createTime || item.publishedAt || item.date || new Date().toISOString()),
+                            metrics,
+                            engagementRate: followers > 0 ? parseFloat(((totalEng / followers) * 100).toFixed(1)) : 0,
+                        };
+                    });
+                    const cachedProfile = {
+                        platform,
+                        username: String(parsed.profile.username || ''),
+                        displayName: String(parsed.profile.displayName || ''),
+                        followers: Number(parsed.profile.followers || 0),
+                        following: Number(parsed.profile.following || 0),
+                        totalPosts: Number(parsed.profile.totalPosts || cachedPosts.length),
+                        bio: String(parsed.profile.bio || ''),
+                        verified: Boolean(parsed.profile.verified),
+                        avatarUrlHD: String(parsed.profile.avatarUrlHD || ''),
+                    };
+                    const totalEng = cachedPosts.reduce((s, p) => s + p.metrics.likes + p.metrics.comments + (p.metrics.shares || 0), 0);
+                    setLiveData({
+                        profile: cachedProfile,
+                        posts: cachedPosts,
+                        summary: {
+                            totalEngagement: totalEng,
+                            avgEngagementRate: parsed.computedMetrics?.avgEngagementRate || (cachedPosts.length > 0 ? parseFloat((cachedPosts.reduce((s, p) => s + p.engagementRate, 0) / cachedPosts.length).toFixed(1)) : 0),
+                            topPost: cachedPosts[0],
+                        },
+                    });
                 }
-    }, [settingsLoaded, platform, settings.usernames, fetchLiveData]);
+            }
+        } catch { /* ignore cache parse errors */ }
+    }, [settingsLoaded, platform]);
 
     // Auto-save export snapshot so Media Kit always has fresh stats
     // Use a ref to track if blob upload already ran for this data set
