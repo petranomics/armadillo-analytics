@@ -86,6 +86,22 @@ export default function MediaKitPage() {
     const { exportData, photos } = loadAllPlatformData(profile.selectedPlatforms);
     if (exportData) {
       kit = populateFromExportData(kit, exportData, profile.userType);
+
+      // Force-refresh photos if current ones are expired CDN URLs
+      const isExpiredCdn = (u: string) => u && !u.startsWith('data:') && !u.includes('.vercel-storage.com') && (u.includes('cdninstagram') || u.includes('fbcdn') || u.includes('scontent'));
+      if (kit.headerPhotoUrl && isExpiredCdn(kit.headerPhotoUrl)) {
+        const freshAvatar = exportData.profile?.avatarUrlHD;
+        if (freshAvatar) kit.headerPhotoUrl = freshAvatar;
+      }
+      if (kit.galleryPhotoUrls.some(isExpiredCdn)) {
+        // Replace with fresh photos from export data
+        const freshThumbnails = (exportData.posts || [])
+          .map((p: { thumbnailUrl?: string }) => p.thumbnailUrl)
+          .filter(Boolean) as string[];
+        if (freshThumbnails.length > 0) {
+          kit.galleryPhotoUrls = freshThumbnails.slice(0, kit.galleryPhotoUrls.length || 3);
+        }
+      }
     }
     setAvailablePhotos(photos);
 
