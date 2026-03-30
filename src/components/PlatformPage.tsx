@@ -14,6 +14,7 @@ import BestTimeCard from '@/components/cards/BestTimeCard';
 import CollabTrackerCard from '@/components/cards/CollabTrackerCard';
 import AudioInsightsCard from '@/components/cards/AudioInsightsCard';
 import DataTable from '@/components/ui/DataTable';
+import { persistImages } from '@/lib/image-cache';
 import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database, ExternalLink, Calendar, Download, Loader2 } from 'lucide-react';
 
 // Metrics that are NOT available from public scraping per platform
@@ -192,6 +193,44 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
         };
         localStorage.setItem('armadillo-export-data', JSON.stringify(exportPayload));
         localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(exportPayload));
+
+        // Persist images to Vercel Blob in background so they survive CDN expiry
+        const imageUrls = [
+          lp.avatarUrlHD,
+          ...lPosts.map(p => p.thumbnailUrl).filter(Boolean),
+        ].filter(Boolean) as string[];
+
+        if (imageUrls.length > 0) {
+          persistImages(imageUrls).then(mapping => {
+            // Update the stored export data with permanent URLs
+            const updated = { ...exportPayload };
+            if (updated.profile.avatarUrlHD && mapping[updated.profile.avatarUrlHD]) {
+              updated.profile = { ...updated.profile, avatarUrlHD: mapping[updated.profile.avatarUrlHD] };
+            }
+            updated.posts = updated.posts.map(p => ({
+              ...p,
+              thumbnailUrl: (p.thumbnailUrl && mapping[p.thumbnailUrl]) || p.thumbnailUrl,
+            }));
+            localStorage.setItem('armadillo-export-data', JSON.stringify(updated));
+            localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(updated));
+
+            // Update live data so the current page shows persistent images
+            setLiveData(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                profile: {
+                  ...prev.profile,
+                  avatarUrlHD: mapping[prev.profile.avatarUrlHD || ''] || prev.profile.avatarUrlHD,
+                },
+                posts: prev.posts.map(p => ({
+                  ...p,
+                  thumbnailUrl: (p.thumbnailUrl && mapping[p.thumbnailUrl]) || p.thumbnailUrl,
+                })),
+              };
+            });
+          }).catch(() => { /* silently fail — original URLs still work while fresh */ });
+        }
     }, [liveData, platform]);
 
     // No data state — show empty state with fetch button

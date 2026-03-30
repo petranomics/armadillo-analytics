@@ -1,32 +1,57 @@
 /**
- * Convert an external image URL to a data URL by fetching through our proxy.
- * This makes the image permanent — it won't break when CDN tokens expire.
- * Returns the original URL as fallback if conversion fails.
+ * Check if a URL is already permanent (data URL, blob URL, or Vercel Blob).
  */
-export async function toDataUrl(url: string): Promise<string> {
-  // Already a data URL or blob URL — no conversion needed
-  if (!url || url.startsWith('data:') || url.startsWith('blob:')) return url;
+function isPermanent(url: string): boolean {
+  return !url || url.startsWith('data:') || url.startsWith('blob:') || url.includes('.vercel-storage.com');
+}
+
+/**
+ * Upload images to Vercel Blob storage for permanent hosting.
+ * Returns a map of originalUrl -> blobUrl.
+ * Falls back to the original URL if upload fails.
+ */
+export async function persistImages(urls: string[]): Promise<Record<string, string>> {
+  const toUpload = urls.filter(u => u && !isPermanent(u));
+  if (toUpload.length === 0) {
+    // All already permanent
+    return Object.fromEntries(urls.map(u => [u, u]));
+  }
 
   try {
-    const proxyUrl = `/api/image-fetch?url=${encodeURIComponent(url)}`;
-    const res = await fetch(proxyUrl);
-    if (!res.ok) return url;
-
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(url);
-      reader.readAsDataURL(blob);
+    const res = await fetch('/api/image-upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: toUpload }),
     });
+    if (!res.ok) {
+      // Fallback: return originals
+      return Object.fromEntries(urls.map(u => [u, u]));
+    }
+    const { results } = await res.json();
+    // Merge: permanent URLs pass through, uploaded ones get blob URLs
+    const merged: Record<string, string> = {};
+    for (const u of urls) {
+      merged[u] = isPermanent(u) ? u : (results[u] || u);
+    }
+    return merged;
   } catch {
-    return url;
+    return Object.fromEntries(urls.map(u => [u, u]));
   }
 }
 
 /**
- * Convert multiple URLs to data URLs in parallel.
+ * Persist a single image to Vercel Blob. Returns the permanent URL.
+ */
+export async function toDataUrl(url: string): Promise<string> {
+  if (!url || isPermanent(url)) return url;
+  const results = await persistImages([url]);
+  return results[url] || url;
+}
+
+/**
+ * Persist multiple images to Vercel Blob. Returns permanent URLs in order.
  */
 export async function toDataUrls(urls: string[]): Promise<string[]> {
-  return Promise.all(urls.map(toDataUrl));
+  const results = await persistImages(urls);
+  return urls.map(u => results[u] || u);
 }
