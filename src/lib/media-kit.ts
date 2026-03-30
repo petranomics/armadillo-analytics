@@ -511,13 +511,30 @@ export function populateFromExportData(
 ): MediaKitData {
   const { profile, computedMetrics, posts } = exportData;
 
+  // Auto-derive tagline from bio if bio is short enough and tagline is empty
+  const scrapedBio = profile.bio || '';
+  let autoTagline = existing.tagline;
+  let autoBio = existing.bio;
+  if (!existing.tagline && !existing.bio && scrapedBio) {
+    if (scrapedBio.length <= 80) {
+      // Short bio works as a tagline
+      autoTagline = scrapedBio;
+    } else {
+      // Longer bio goes in the bio field
+      autoBio = scrapedBio;
+    }
+  } else if (!existing.bio && scrapedBio) {
+    autoBio = scrapedBio;
+  }
+
   return {
     ...existing,
     userType,
     username: existing.username || profile.username,
     platform: profile.platform,
     displayName: existing.displayName || profile.displayName,
-    bio: existing.bio || profile.bio || '',
+    tagline: autoTagline,
+    bio: autoBio,
     headerPhotoUrl: existing.headerPhotoUrl || profile.avatarUrlHD || '',
     stats: {
       followers: profile.followers,
@@ -544,6 +561,10 @@ export function populateFromExportData(
     engagementTrend: computeEngagementTrend(posts),
     topHashtags: computeTopHashtags(posts),
     collabLift: computeCollabLift(posts),
+    // Auto-fill content topics from top hashtags if none set
+    contentTopics: existing.contentTopics.length > 0
+      ? existing.contentTopics
+      : computeTopHashtags(posts).slice(0, 5).map(h => h.tag),
     offerings: existing.offerings.length > 0 ? existing.offerings : DEFAULT_OFFERINGS[userType],
   };
 }
