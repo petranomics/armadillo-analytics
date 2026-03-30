@@ -4,107 +4,127 @@ import crypto from 'crypto';
 
 // Requires BLOB_READ_WRITE_TOKEN env var (set via Vercel Blob store connection)
 
-const ALLOWED_DOMAINS = [
-  'scontent',
-  'instagram',
-  'cdninstagram.com',
-  'fbcdn.net',
-];
+/** Generate a stable hash from a string */
+function hash(input: string): string {
+  return crypto.createHash('sha256').update(input).digest('hex').slice(0, 16);
+}
 
-/** Generate a stable hash from the URL path (ignoring query params / auth tokens) */
-function hashUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    return crypto.createHash('sha256').update(parsed.pathname).digest('hex').slice(0, 16);
-  } catch {
-    return crypto.createHash('sha256').update(url).digest('hex').slice(0, 16);
-  }
+/** Convert a data URL to a Buffer */
+function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; contentType: string } | null {
+  const match = dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+  if (!match) return null;
+  return {
+    contentType: match[1],
+    buffer: Buffer.from(match[2], 'base64'),
+  };
+}
+
+interface UploadItem {
+  originalUrl: string;
+  dataUrl: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { urls } = (await request.json()) as { urls: string[] };
-
-    if (!urls || !Array.isArray(urls) || urls.length === 0) {
-      return NextResponse.json({ error: 'Missing urls array' }, { status: 400 });
-    }
+    const body = await request.json();
 
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.error('BLOB_READ_WRITE_TOKEN not set — returning original URLs');
-      const passthrough: Record<string, string> = {};
-      for (const u of urls) passthrough[u] = u;
-      return NextResponse.json({ results: passthrough });
+      console.error('[image-upload] BLOB_READ_WRITE_TOKEN not set');
+      // Fall back: return original URLs
+      if (body.urls && Array.isArray(body.urls)) {
+        if (typeof body.urls[0] === 'string') {
+          const results: Record<string, string> = {};
+          for (const u of body.urls) results[u] = u;
+          return NextResponse.json({ results });
+        }
+        const results: Record<string, string> = {};
+        for (const item of body.urls) results[item.originalUrl] = item.originalUrl;
+        return NextResponse.json({ results });
+      }
+      return NextResponse.json({ error: 'No BLOB_READ_WRITE_TOKEN' }, { status: 500 });
     }
 
-    const toProcess = urls.slice(0, 30);
-    const results: Record<string, string> = {};
+    // New format: array of { originalUrl, dataUrl } objects
+    if (body.urls && Array.isArray(body.urls) && body.urls.length > 0 && typeof body.urls[0] === 'object') {
+      const items = (body.urls as UploadItem[]).slice(0, 30);
+      const results: Record<string, string> = {};
 
-    await Promise.allSettled(
-      toProcess.map(async (url) => {
-        // Skip already-permanent URLs
-        if (
-          url.startsWith('data:') ||
-          url.startsWith('blob:') ||
-          url.includes('.public.blob.vercel-storage.com') ||
-          url.includes('.vercel-storage.com')
-        ) {
+      await Promise.allSettled(
+        items.map(async ({ originalUrl, dataUrl }) => {
+          // Skip if already on Blob
+          if (originalUrl.includes('.vercel-storage.com')) {
+            results[originalUrl] = originalUrl;
+            return;
+          }
+
+          const parsed = dataUrlToBuffer(dataUrl);
+          if (!parsed) {
+            console.warn(`[image-upload] Failed to parse data URL for ${originalUrl.slice(0, 60)}`);
+            results[originalUrl] = originalUrl;
+            return;
+          }
+
+          try {
+            const ext = parsed.contentType.includes('png') ? 'png' : parsed.contentType.includes('webp') ? 'webp' : 'jpg';
+            const filename = `media-kit/${hash(originalUrl)}.${ext}`;
+
+            const blob = await put(filename, parsed.buffer, {
+              access: 'public',
+              contentType: parsed.contentType,
+              addRandomSuffix: false,
+            });
+
+            console.log(`[image-upload] Uploaded: ${filename} → ${blob.url}`);
+            results[originalUrl] = blob.url;
+          } catch (err) {
+            console.error(`[image-upload] Blob put failed:`, err);
+            results[originalUrl] = dataUrl; // fall back to data URL
+          }
+        })
+      );
+
+      return NextResponse.json({ results });
+    }
+
+    // Legacy format: array of URL strings (for non-Instagram URLs that can be fetched server-side)
+    if (body.urls && Array.isArray(body.urls) && typeof body.urls[0] === 'string') {
+      const urls = (body.urls as string[]).slice(0, 30);
+      const results: Record<string, string> = {};
+
+      for (const url of urls) {
+        if (isPermanent(url)) {
           results[url] = url;
-          return;
+          continue;
         }
-
-        // Validate domain for security
-        const isAllowed = ALLOWED_DOMAINS.some(d => url.includes(d));
-        if (!isAllowed) {
-          results[url] = url;
-          return;
-        }
-
+        // For non-Instagram URLs, try server-side fetch
         try {
-          // Fetch the image from Instagram CDN server-side
-          const res = await fetch(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-            },
-          });
-
-          if (!res.ok) {
-            console.warn(`Image fetch failed (${res.status}): ${url.slice(0, 80)}...`);
-            results[url] = url;
-            return;
-          }
-
-          // Read full body as ArrayBuffer — more reliable than streaming for Vercel Blob
-          const arrayBuffer = await res.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-
-          if (buffer.length === 0) {
-            results[url] = url;
-            return;
-          }
-
+          const res = await fetch(url);
+          if (!res.ok) { results[url] = url; continue; }
+          const buffer = Buffer.from(await res.arrayBuffer());
           const contentType = res.headers.get('content-type') || 'image/jpeg';
-          const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
-          const hash = hashUrl(url);
-          const filename = `media-kit/${hash}.${ext}`;
-
-          const blob = await put(filename, buffer, {
+          const ext = contentType.includes('png') ? 'png' : 'jpg';
+          const blob = await put(`media-kit/${hash(url)}.${ext}`, buffer, {
             access: 'public',
             contentType,
             addRandomSuffix: false,
           });
-
           results[url] = blob.url;
-        } catch (err) {
-          console.error(`Blob upload failed for ${url.slice(0, 80)}:`, err);
+        } catch {
           results[url] = url;
         }
-      })
-    );
+      }
 
-    return NextResponse.json({ results });
+      return NextResponse.json({ results });
+    }
+
+    return NextResponse.json({ error: 'Invalid request format' }, { status: 400 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('image-upload route error:', message);
+    console.error('[image-upload] Route error:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+function isPermanent(url: string): boolean {
+  return !url || url.startsWith('data:') || url.startsWith('blob:') || url.includes('.vercel-storage.com');
 }

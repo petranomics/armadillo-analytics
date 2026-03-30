@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Platform, PlatformData, Post } from '@/lib/types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import { useSettings } from '@/hooks/useSettings';
@@ -14,7 +14,7 @@ import BestTimeCard from '@/components/cards/BestTimeCard';
 import CollabTrackerCard from '@/components/cards/CollabTrackerCard';
 import AudioInsightsCard from '@/components/cards/AudioInsightsCard';
 import DataTable from '@/components/ui/DataTable';
-import { persistImages } from '@/lib/image-cache';
+import { persistImagesClientSide } from '@/lib/image-cache';
 import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database, ExternalLink, Calendar, Download, Loader2 } from 'lucide-react';
 
 // Metrics that are NOT available from public scraping per platform
@@ -159,6 +159,9 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
     }, [settingsLoaded, platform, settings.usernames, fetchLiveData]);
 
     // Auto-save export snapshot so Media Kit always has fresh stats
+    // Use a ref to track if blob upload already ran for this data set
+    const blobUploadedRef = useRef(false);
+
     useEffect(() => {
         if (!liveData) return;
         const { profile: lp, posts: lPosts, summary: lSummary } = liveData;
@@ -194,15 +197,25 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
         localStorage.setItem('armadillo-export-data', JSON.stringify(exportPayload));
         localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(exportPayload));
 
-        // Persist images to Vercel Blob in background so they survive CDN expiry
+        // Persist images to Vercel Blob — only once per scrape, not on re-renders
+        if (blobUploadedRef.current) return;
+        const hasExpirableUrls = lPosts.some(p => p.thumbnailUrl && !p.thumbnailUrl.includes('.vercel-storage.com') && !p.thumbnailUrl.startsWith('data:'));
+        if (!hasExpirableUrls) return;
+        blobUploadedRef.current = true;
+
         const imageUrls = [
           lp.avatarUrlHD,
           ...lPosts.map(p => p.thumbnailUrl).filter(Boolean),
-        ].filter(Boolean) as string[];
+        ].filter(u => u && !u.includes('.vercel-storage.com') && !u.startsWith('data:')) as string[];
 
         if (imageUrls.length > 0) {
-          persistImages(imageUrls).then(mapping => {
-            // Update the stored export data with permanent URLs
+          console.log(`[Blob] Converting ${imageUrls.length} images client-side...`);
+          persistImagesClientSide(imageUrls).then(mapping => {
+            const uploaded = Object.values(mapping).filter(v => v.includes('.vercel-storage.com')).length;
+            console.log(`[Blob] Done: ${uploaded}/${imageUrls.length} uploaded`);
+            if (uploaded === 0) return;
+
+            // Update localStorage with permanent URLs
             const updated = { ...exportPayload };
             if (updated.profile.avatarUrlHD && mapping[updated.profile.avatarUrlHD]) {
               updated.profile = { ...updated.profile, avatarUrlHD: mapping[updated.profile.avatarUrlHD] };
@@ -214,9 +227,10 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
             localStorage.setItem('armadillo-export-data', JSON.stringify(updated));
             localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(updated));
 
-            // Update live data so the current page shows persistent images
+            // Update live view
             setLiveData(prev => {
               if (!prev) return prev;
+              blobUploadedRef.current = true; // prevent re-trigger
               return {
                 ...prev,
                 profile: {
@@ -229,7 +243,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                 })),
               };
             });
-          }).catch(() => { /* silently fail — original URLs still work while fresh */ });
+          }).catch((err) => { console.error('[Blob] Upload failed:', err); });
         }
     }, [liveData, platform]);
 
