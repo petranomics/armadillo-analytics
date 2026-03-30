@@ -130,7 +130,7 @@ export default function DataTable({ posts, hideShares }: { posts: Post[]; hideSh
                 {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
               </td>
               <td className="px-3 py-3 text-right text-xs text-armadillo-text tabular-nums">
-                {post.metrics.views !== undefined ? formatNumber(post.metrics.views) : '-'}
+                {post.metrics.views ? formatNumber(post.metrics.views) : <span className="text-armadillo-muted">n/a</span>}
               </td>
               <td className="px-3 py-3 text-right text-xs text-armadillo-text tabular-nums">
                 {formatNumber(post.metrics.likes)}
@@ -140,7 +140,7 @@ export default function DataTable({ posts, hideShares }: { posts: Post[]; hideSh
               </td>
               {!hideShares && (
               <td className="px-3 py-3 text-right text-xs text-armadillo-text tabular-nums">
-                {post.metrics.shares !== undefined ? formatNumber(post.metrics.shares) : '-'}
+                {post.metrics.shares ? formatNumber(post.metrics.shares) : <span className="text-armadillo-muted">n/a</span>}
               </td>
               )}
               <td className="px-3 py-3 text-right text-xs font-medium text-burnt tabular-nums">
