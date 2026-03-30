@@ -128,7 +128,7 @@ export default function DataTable({ posts, hideShares }: { posts: Post[]; hideSh
                 <p className="text-sm text-armadillo-text truncate max-w-sm">{post.caption}</p>
               </td>
               <td className="px-3 py-3 text-right text-xs text-armadillo-muted whitespace-nowrap">
-                {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
               </td>
               <td className="px-3 py-3 text-right text-xs text-armadillo-text tabular-nums">
                 {post.metrics.views ? formatNumber(post.metrics.views) : <span className="text-armadillo-muted">n/a</span>}
