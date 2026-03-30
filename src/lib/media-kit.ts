@@ -22,6 +22,10 @@ export interface MediaKitStats {
   totalShares: number;
   avgEngPerPost: number;
   likesPerComment: number; // likes-to-comments ratio — shows audience type
+  engPer1KFollowers: number;
+  viewsToEngPct: number;
+  avgCommentsPerPost: number;
+  shareRate: number;
 }
 
 export interface MediaKitData {
@@ -76,6 +80,9 @@ export interface MediaKitData {
 
   // Accent color override
   accentColorOverride: string;
+
+  // Layout override
+  layoutOverride: OneSheetLayout | '';
 
   // Cover photo for top of one-sheet
   coverPhotoUrl: string;
@@ -299,6 +306,10 @@ const DEFAULT_MEDIA_KIT: MediaKitData = {
     totalShares: 0,
     avgEngPerPost: 0,
     likesPerComment: 0,
+    engPer1KFollowers: 0,
+    viewsToEngPct: 0,
+    avgCommentsPerPost: 0,
+    shareRate: 0,
   },
   selectedStatKeys: [],
   offerings: [],
@@ -306,6 +317,7 @@ const DEFAULT_MEDIA_KIT: MediaKitData = {
   audienceDemographics: { topAge: '', topGender: '', topLocation: '' },
   growthCallout: '',
   accentColorOverride: '',
+  layoutOverride: '',
   coverPhotoUrl: '',
   callToAction: '',
   username: '',
@@ -490,6 +502,22 @@ function computeTopHashtags(posts: ExportPostShape[]): { tag: string; avgEng: nu
     .slice(0, 5);
 }
 
+function pickBestGalleryPhotos(posts: ExportPostShape[], maxCount: number): string[] {
+  const seen = new Set<string>();
+  return [...posts]
+    .filter(p => !!p.thumbnailUrl)
+    .sort((a, b) => getEng(b) - getEng(a))
+    .reduce<string[]>((acc, p) => {
+      if (acc.length >= maxCount) return acc;
+      const url = p.thumbnailUrl!;
+      if (!seen.has(url)) {
+        seen.add(url);
+        acc.push(url);
+      }
+      return acc;
+    }, []);
+}
+
 function computeCollabLift(posts: ExportPostShape[]): { withCollabs: number; without: number } | undefined {
   const with_: number[] = [];
   const without_: number[] = [];
@@ -527,6 +555,8 @@ export function populateFromExportData(
     autoBio = scrapedBio;
   }
 
+  const totalEng = computedMetrics.totalLikes + computedMetrics.totalComments + computedMetrics.totalShares;
+
   return {
     ...existing,
     userType,
@@ -536,6 +566,9 @@ export function populateFromExportData(
     tagline: autoTagline,
     bio: autoBio,
     headerPhotoUrl: existing.headerPhotoUrl || profile.avatarUrlHD || '',
+    galleryPhotoUrls: existing.galleryPhotoUrls.length > 0
+      ? existing.galleryPhotoUrls
+      : pickBestGalleryPhotos(posts, 3),
     stats: {
       followers: profile.followers,
       engagementRate: computedMetrics.avgEngagementRate,
@@ -547,10 +580,22 @@ export function populateFromExportData(
       postingFreq: computedMetrics.postingFreq,
       totalShares: computedMetrics.totalShares,
       avgEngPerPost: posts.length > 0
-        ? Math.round((computedMetrics.totalLikes + computedMetrics.totalComments + computedMetrics.totalShares) / posts.length)
+        ? Math.round(totalEng / posts.length)
         : 0,
       likesPerComment: computedMetrics.totalComments > 0
         ? Math.round((computedMetrics.totalLikes / computedMetrics.totalComments) * 10) / 10
+        : 0,
+      engPer1KFollowers: profile.followers > 0
+        ? Math.round((totalEng / profile.followers) * 1000 * 10) / 10
+        : 0,
+      viewsToEngPct: computedMetrics.totalViews > 0
+        ? Math.round((totalEng / computedMetrics.totalViews) * 100 * 10) / 10
+        : 0,
+      avgCommentsPerPost: posts.length > 0
+        ? Math.round(computedMetrics.totalComments / posts.length)
+        : 0,
+      shareRate: totalEng > 0
+        ? Math.round((computedMetrics.totalShares / totalEng) * 100 * 10) / 10
         : 0,
     },
     // Auto-computed insights from post data
@@ -582,6 +627,10 @@ export const ALL_STAT_OPTIONS: { key: keyof MediaKitStats; label: string }[] = [
   { key: 'totalShares', label: 'Total Shares' },
   { key: 'avgEngPerPost', label: 'Avg Eng / Post' },
   { key: 'likesPerComment', label: 'Like:Comment Ratio' },
+  { key: 'engPer1KFollowers', label: 'Eng / 1K Followers' },
+  { key: 'viewsToEngPct', label: 'View\u2192Eng Rate' },
+  { key: 'avgCommentsPerPost', label: 'Avg Comments / Post' },
+  { key: 'shareRate', label: 'Share Rate' },
 ];
 
 export const SOCIAL_PLATFORM_OPTIONS = [
@@ -593,8 +642,17 @@ export const SOCIAL_PLATFORM_OPTIONS = [
   { id: 'website', label: 'Website', icon: 'Globe' },
 ] as const;
 
+export const LAYOUT_OPTIONS: { value: OneSheetLayout; label: string; description: string }[] = [
+  { value: 'visual', label: 'Visual', description: 'Photo-forward \u2014 Instagram & TikTok' },
+  { value: 'professional', label: 'Professional', description: 'Clean two-column \u2014 LinkedIn & media' },
+  { value: 'video', label: 'Video', description: 'Dark theme \u2014 YouTube' },
+  { value: 'community', label: 'Community', description: 'Warm local feel \u2014 businesses' },
+];
+
 export function formatStatValue(key: keyof MediaKitStats, value: string | number): string {
   if (key === 'engagementRate') return `${value}%`;
+  if (key === 'viewsToEngPct') return `${value}%`;
+  if (key === 'shareRate') return `${value}%`;
   if (key === 'postingFreq') return String(value) || '--';
   if (key === 'likesPerComment') return `${value}:1`;
   const n = Number(value);

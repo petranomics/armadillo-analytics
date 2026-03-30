@@ -240,7 +240,7 @@ function FooterBar({ accent, email, callToAction }: { accent: string; email?: st
 
 export default function OneSheet({ mediaKit }: OneSheetProps) {
   const config = ONE_SHEET_CONFIG[mediaKit.userType];
-  const layout = config.layout;
+  const layout = mediaKit.layoutOverride || config.layout;
   const accent = mediaKit.accentColorOverride || config.accentColor;
   const { r, g, b } = hexToRgb(accent);
   const industryLabel = getIndustryLabel(mediaKit.industryValue, mediaKit.userType);

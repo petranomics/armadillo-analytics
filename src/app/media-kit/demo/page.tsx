@@ -42,6 +42,7 @@ const SHARED = {
     { platform: 'website', url: '#', handle: 'demo.com' },
   ],
   audienceDemographics: { topAge: '', topGender: '', topLocation: '' },
+  layoutOverride: '' as const,
   coverPhotoUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop',
   headerPhotoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face',
   galleryPhotoUrls: [
@@ -67,7 +68,7 @@ const DEMOS: { label: string; data: MediaKitData }[] = [
       bio: 'Austin-based lifestyle creator sharing everyday wellness, home design, and local eats. I partner with brands that align with my community of health-conscious millennials.',
       contentTopics: ['Wellness', 'Home Decor', 'Food & Drink', 'Fitness', 'Travel'],
       brandCollaborations: ['Whole Foods', 'Lululemon', 'Anthropologie', 'Daily Harvest', 'Oura Ring'],
-      stats: { followers: 127400, engagementRate: 4.8, totalLikes: 1843200, totalComments: 94500, totalViews: 8720000, avgViewsPerPost: 24300, totalPosts: 1247, postingFreq: '5x / week', totalShares: 42100, avgEngPerPost: 1587, likesPerComment: 19.5 },
+      stats: { followers: 127400, engagementRate: 4.8, totalLikes: 1843200, totalComments: 94500, totalViews: 8720000, avgViewsPerPost: 24300, totalPosts: 1247, postingFreq: '5x / week', totalShares: 42100, avgEngPerPost: 1587, likesPerComment: 19.5, engPer1KFollowers: 15538.5, viewsToEngPct: 22.7, avgCommentsPerPost: 76, shareRate: 2.1 },
       offerings: [
         { id: '1', name: 'Sponsored Post', price: '$1,200', description: 'In-feed photo or carousel' },
         { id: '2', name: 'Reel / Video', price: '$2,500', description: '15-60s branded video' },
@@ -91,7 +92,7 @@ const DEMOS: { label: string; data: MediaKitData }[] = [
       bio: '15+ years building engineering orgs from 5 to 500+. I write about technical leadership, team culture, and the human side of scaling startups. Former Head of Eng at two unicorn exits.',
       contentTopics: ['Engineering Leadership', 'Team Building', 'Startup Culture', 'Technical Strategy'],
       brandCollaborations: [],
-      stats: { followers: 84200, engagementRate: 6.2, totalLikes: 520000, totalComments: 48300, totalViews: 3200000, avgViewsPerPost: 18500, totalPosts: 342, postingFreq: '3x / week', totalShares: 18200, avgEngPerPost: 1714, likesPerComment: 10.8 },
+      stats: { followers: 84200, engagementRate: 6.2, totalLikes: 520000, totalComments: 48300, totalViews: 3200000, avgViewsPerPost: 18500, totalPosts: 342, postingFreq: '3x / week', totalShares: 18200, avgEngPerPost: 1714, likesPerComment: 10.8, engPer1KFollowers: 6966.7, viewsToEngPct: 18.3, avgCommentsPerPost: 141, shareRate: 3.1 },
       offerings: [
         { id: '1', name: 'Sponsored Post', price: '$2,000', description: 'Thought leadership feature' },
         { id: '2', name: 'Keynote Speaking', price: '$8,000', description: 'Conference keynote (45 min)' },
@@ -140,7 +141,7 @@ const DEMOS: { label: string; data: MediaKitData }[] = [
       bio: 'I break down the latest tech with real-world benchmarks and honest opinions. 200K+ subscribers trust me for buying decisions on phones, laptops, and smart home gear.',
       contentTopics: ['Tech Reviews', 'Benchmarks', 'Smart Home', 'Laptops', 'Mobile'],
       brandCollaborations: ['Samsung', 'Anker', 'dbrand', 'NordVPN', 'Squarespace'],
-      stats: { followers: 218000, engagementRate: 3.4, totalLikes: 4200000, totalComments: 186000, totalViews: 42000000, avgViewsPerPost: 85000, totalPosts: 495, postingFreq: '2x / week', totalShares: 0, avgEngPerPost: 8860, likesPerComment: 22.6 },
+      stats: { followers: 218000, engagementRate: 3.4, totalLikes: 4200000, totalComments: 186000, totalViews: 42000000, avgViewsPerPost: 85000, totalPosts: 495, postingFreq: '2x / week', totalShares: 0, avgEngPerPost: 8860, likesPerComment: 22.6, engPer1KFollowers: 20119.3, viewsToEngPct: 10.4, avgCommentsPerPost: 376, shareRate: 0 },
       offerings: [
         { id: '1', name: 'Dedicated Review', price: '$5,000', description: 'Full 10-15 min video' },
         { id: '2', name: 'Integrated Sponsor (60s)', price: '$2,500', description: 'Mid-roll or intro spot' },
@@ -196,7 +197,7 @@ const DEMOS: { label: string; data: MediaKitData }[] = [
       bio: 'Family-owned bakery on South Congress Ave since 2018. We specialize in sourdough, French pastries, and custom wedding cakes using locally sourced ingredients.',
       contentTopics: ['Artisan Bread', 'Pastries', 'Wedding Cakes', 'Local Ingredients'],
       brandCollaborations: [],
-      stats: { followers: 14800, engagementRate: 7.2, totalLikes: 98000, totalComments: 12400, totalViews: 420000, avgViewsPerPost: 2100, totalPosts: 386, postingFreq: '4x / week', totalShares: 3200, avgEngPerPost: 294, likesPerComment: 7.9 },
+      stats: { followers: 14800, engagementRate: 7.2, totalLikes: 98000, totalComments: 12400, totalViews: 420000, avgViewsPerPost: 2100, totalPosts: 386, postingFreq: '4x / week', totalShares: 3200, avgEngPerPost: 294, likesPerComment: 7.9, engPer1KFollowers: 7675.7, viewsToEngPct: 27.0, avgCommentsPerPost: 32, shareRate: 2.8 },
       offerings: [
         { id: '1', name: 'Event Catering', price: 'From $500', description: 'Pastry platters for 20-100 guests' },
         { id: '2', name: 'Custom Wedding Cake', price: 'From $800', description: 'Tasting + design consultation' },

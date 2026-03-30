@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { MediaKitData, MediaKitOffering, MediaKitStats } from '@/lib/media-kit';
-import { INDUSTRY_FIELD_MAP, getIndustryOptions, ONE_SHEET_CONFIG, ALL_STAT_OPTIONS, SOCIAL_PLATFORM_OPTIONS } from '@/lib/media-kit';
+import { INDUSTRY_FIELD_MAP, getIndustryOptions, ONE_SHEET_CONFIG, ALL_STAT_OPTIONS, SOCIAL_PLATFORM_OPTIONS, LAYOUT_OPTIONS } from '@/lib/media-kit';
 import PhotoPicker from './PhotoPicker';
 import OfferingsEditor from './OfferingsEditor';
 import { X, Plus, Check, Trash2 } from 'lucide-react';
@@ -267,6 +267,30 @@ export default function MediaKitForm({ mediaKit, onChange, availablePhotos }: Me
               currentCover={mediaKit.coverPhotoUrl ?? ''}
               onSelect={(url) => onChange({ coverPhotoUrl: url })}
             />
+          </div>
+
+          {/* Layout Style */}
+          <div>
+            <label className="text-[10px] text-armadillo-muted uppercase tracking-wider font-medium block mb-2">Layout Style</label>
+            <div className="grid grid-cols-2 gap-2">
+              {LAYOUT_OPTIONS.map((opt) => {
+                const isActive = (mediaKit.layoutOverride || config.layout) === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => onChange({ layoutOverride: opt.value === config.layout ? '' : opt.value })}
+                    className={`text-left rounded-lg px-3 py-2.5 transition-all ${
+                      isActive
+                        ? 'border-2 border-burnt bg-burnt/5'
+                        : 'border border-armadillo-border bg-armadillo-bg hover:border-armadillo-muted'
+                    }`}
+                  >
+                    <div className={`text-xs font-semibold ${isActive ? 'text-burnt' : 'text-armadillo-text'}`}>{opt.label}</div>
+                    <div className="text-[10px] text-armadillo-muted mt-0.5 leading-tight">{opt.description}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </Section>
