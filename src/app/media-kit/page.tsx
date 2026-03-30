@@ -8,7 +8,10 @@ import {
   saveMediaKit,
   populateFromExportData,
   type MediaKitData,
+  type OneSheetLayout,
   DEFAULT_OFFERINGS,
+  LAYOUT_OPTIONS,
+  ONE_SHEET_CONFIG,
 } from '@/lib/media-kit';
 import { toDataUrl } from '@/lib/image-cache';
 import { USER_TYPES } from '@/lib/user-types';
@@ -97,8 +100,10 @@ export default function MediaKitPage() {
     // Set user type from profile
     kit.userType = profile.userType;
 
-    // Cache the auto-populated header photo so it persists after CDN expiry
-    if (kit.headerPhotoUrl && !kit.headerPhotoUrl.startsWith('data:')) {
+    const isPermanent = (u: string) => !u || u.startsWith('data:') || u.startsWith('blob:') || u.includes('.vercel-storage.com');
+
+    // Cache the auto-populated header photo to Blob
+    if (kit.headerPhotoUrl && !isPermanent(kit.headerPhotoUrl)) {
       toDataUrl(kit.headerPhotoUrl).then(cached => {
         if (cached !== kit.headerPhotoUrl) {
           setMediaKit(prev => prev ? { ...prev, headerPhotoUrl: cached } : prev);
@@ -106,15 +111,15 @@ export default function MediaKitPage() {
       });
     }
 
-    // Cache auto-populated gallery photos
-    if (kit.galleryPhotoUrls.some(u => !u.startsWith('data:'))) {
+    // Cache auto-populated gallery photos to Blob
+    if (kit.galleryPhotoUrls.some(u => !isPermanent(u))) {
       Promise.all(kit.galleryPhotoUrls.map(u => toDataUrl(u))).then(cached => {
         setMediaKit(prev => prev ? { ...prev, galleryPhotoUrls: cached } : prev);
       });
     }
 
-    // Cache all available photos in background so the picker shows them
-    if (photos.length > 0) {
+    // Cache all available photos in background
+    if (photos.some(u => !isPermanent(u))) {
       Promise.all(photos.map(u => toDataUrl(u))).then(cached => {
         setAvailablePhotos(cached.filter(u => !!u));
       });
@@ -275,12 +280,23 @@ export default function MediaKitPage() {
         </button>
       </div>
 
-      {/* Tip box */}
-      <div className="bg-armadillo-card border border-armadillo-border rounded-lg px-4 py-2.5 mb-4 flex items-start gap-2">
-        <Lightbulb size={14} className="text-burnt shrink-0 mt-0.5" />
-        <p className="text-[11px] text-armadillo-muted leading-relaxed">
-          <span className="text-armadillo-text font-medium">Tip:</span> Fill in as much detail as possible. Brands prefer complete media kits with audience data and professional photos.
-        </p>
+      {/* Layout selector */}
+      <div className="flex gap-1 bg-armadillo-card border border-armadillo-border rounded-lg p-1 mb-4">
+        {LAYOUT_OPTIONS.map((opt) => {
+          const currentLayout = mediaKit.layoutOverride || ONE_SHEET_CONFIG[mediaKit.userType].layout;
+          const isActive = currentLayout === opt.value;
+          return (
+            <button
+              key={opt.value}
+              onClick={() => handleChange({ layoutOverride: opt.value === ONE_SHEET_CONFIG[mediaKit.userType].layout ? '' : opt.value })}
+              className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${
+                isActive ? 'bg-burnt text-white' : 'text-armadillo-muted hover:text-armadillo-text'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Split layout */}
