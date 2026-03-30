@@ -101,9 +101,22 @@ export default function MediaKitPage() {
     if (kit.headerPhotoUrl && !kit.headerPhotoUrl.startsWith('data:')) {
       toDataUrl(kit.headerPhotoUrl).then(cached => {
         if (cached !== kit.headerPhotoUrl) {
-          kit.headerPhotoUrl = cached;
           setMediaKit(prev => prev ? { ...prev, headerPhotoUrl: cached } : prev);
         }
+      });
+    }
+
+    // Cache auto-populated gallery photos
+    if (kit.galleryPhotoUrls.some(u => !u.startsWith('data:'))) {
+      Promise.all(kit.galleryPhotoUrls.map(u => toDataUrl(u))).then(cached => {
+        setMediaKit(prev => prev ? { ...prev, galleryPhotoUrls: cached } : prev);
+      });
+    }
+
+    // Cache all available photos in background so the picker shows them
+    if (photos.length > 0) {
+      Promise.all(photos.map(u => toDataUrl(u))).then(cached => {
+        setAvailablePhotos(cached.filter(u => !!u));
       });
     }
 
