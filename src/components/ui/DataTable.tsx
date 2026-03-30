@@ -61,10 +61,10 @@ export default function DataTable({ posts, hideShares }: { posts: Post[]; hideSh
 
   return (
     <div className="bg-armadillo-card border border-armadillo-border rounded-xl overflow-hidden">
-      <table className="w-full">
+      <table className="w-full table-fixed">
         <thead>
           <tr className="border-b border-armadillo-border">
-            <th className="px-4 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted w-[50px]">
+            <th className="px-4 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted" style={{ width: '58px', minWidth: '58px' }}>
             </th>
             <th className="text-left px-2 py-3 text-[10px] font-medium tracking-wider uppercase text-armadillo-muted">
               Post
@@ -109,16 +109,17 @@ export default function DataTable({ posts, hideShares }: { posts: Post[]; hideSh
         <tbody>
           {sorted.map((post) => (
             <tr key={post.id} className="border-b border-armadillo-border/50 hover:bg-armadillo-border/20 transition-colors">
-              <td className="px-4 py-2 w-[50px]">
+              <td className="px-4 py-2" style={{ width: '58px', minWidth: '58px' }}>
                 {post.thumbnailUrl ? (
                   <img
                     src={post.thumbnailUrl}
                     alt=""
-                    className="w-10 h-10 rounded-md object-cover"
+                    style={{ width: '40px', height: '40px', minWidth: '40px' }}
+                    className="rounded-md object-cover"
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-10 h-10 rounded-md bg-armadillo-border/50 flex items-center justify-center">
+                  <div style={{ width: '40px', height: '40px', minWidth: '40px' }} className="rounded-md bg-armadillo-border/50 flex items-center justify-center">
                     <span className="text-[9px] text-armadillo-muted">No img</span>
                   </div>
                 )}
