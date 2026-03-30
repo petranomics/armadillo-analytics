@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
 import crypto from 'crypto';
 
+// Requires BLOB_READ_WRITE_TOKEN env var (set via Vercel Blob store connection)
+
 const ALLOWED_DOMAINS = [
   'scontent',
   'instagram',
@@ -13,7 +15,6 @@ const ALLOWED_DOMAINS = [
 function hashUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    // Instagram CDN paths are stable; query params are the expiring token
     return crypto.createHash('sha256').update(parsed.pathname).digest('hex').slice(0, 16);
   } catch {
     return crypto.createHash('sha256').update(url).digest('hex').slice(0, 16);
@@ -28,28 +29,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing urls array' }, { status: 400 });
     }
 
-    // Cap at 30 images per request
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.error('BLOB_READ_WRITE_TOKEN not set — returning original URLs');
+      const passthrough: Record<string, string> = {};
+      for (const u of urls) passthrough[u] = u;
+      return NextResponse.json({ results: passthrough });
+    }
+
     const toProcess = urls.slice(0, 30);
     const results: Record<string, string> = {};
 
     await Promise.allSettled(
       toProcess.map(async (url) => {
-        // Skip already-permanent URLs (data URLs, blob URLs, or already on Vercel Blob)
-        if (url.startsWith('data:') || url.startsWith('blob:') || url.includes('.vercel-storage.com')) {
+        // Skip already-permanent URLs
+        if (
+          url.startsWith('data:') ||
+          url.startsWith('blob:') ||
+          url.includes('.public.blob.vercel-storage.com') ||
+          url.includes('.vercel-storage.com')
+        ) {
           results[url] = url;
           return;
         }
 
-        // Validate domain
+        // Validate domain for security
         const isAllowed = ALLOWED_DOMAINS.some(d => url.includes(d));
         if (!isAllowed) {
-          results[url] = url; // pass through non-Instagram URLs unchanged
+          results[url] = url;
           return;
         }
 
         try {
-          const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+          // Fetch the image from Instagram CDN server-side
+          const res = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+            },
+          });
+
           if (!res.ok) {
+            console.warn(`Image fetch failed (${res.status}): ${url.slice(0, 80)}...`);
+            results[url] = url;
+            return;
+          }
+
+          // Read full body as ArrayBuffer — more reliable than streaming for Vercel Blob
+          const arrayBuffer = await res.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+
+          if (buffer.length === 0) {
             results[url] = url;
             return;
           }
@@ -59,15 +87,16 @@ export async function POST(request: NextRequest) {
           const hash = hashUrl(url);
           const filename = `media-kit/${hash}.${ext}`;
 
-          const blob = await put(filename, res.body!, {
+          const blob = await put(filename, buffer, {
             access: 'public',
             contentType,
             addRandomSuffix: false,
           });
 
           results[url] = blob.url;
-        } catch {
-          results[url] = url; // fallback to original on error
+        } catch (err) {
+          console.error(`Blob upload failed for ${url.slice(0, 80)}:`, err);
+          results[url] = url;
         }
       })
     );
@@ -75,6 +104,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ results });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('image-upload route error:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
