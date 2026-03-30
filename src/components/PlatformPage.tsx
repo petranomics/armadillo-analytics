@@ -168,7 +168,7 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                             platform,
                             url: String(item.url || item.postUrl || '#'),
                             caption: String(item.caption || item.text || item.title || item.description || ''),
-                            thumbnailUrl: String(item.displayUrl || item.thumbnailUrl || ''),
+                            thumbnailUrl: (item.thumbnailUrl || item.displayUrl || '') as string,
                             contentType: String(item.type || item.productType || item.contentType || 'Image'),
                             hashtags: Array.isArray(item.hashtags) ? (item.hashtags as string[]) : [],
                             mentions: Array.isArray(item.mentions) ? (item.mentions as string[]) : [],
