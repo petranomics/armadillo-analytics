@@ -266,7 +266,7 @@ export default function InsightsPage() {
                                                       </div>
                                                       <button
                                                         onClick={() => fetchAIInsights(posts)}
-                                                        disabled={aiLoading}
+                                                        disabled={aiLoading || posts.length === 0}
                                                         className="flex items-center gap-2 bg-burnt hover:bg-burnt-light disabled:opacity-60 text-white px-4 py-2.5 rounded-xl text-xs font-medium transition-colors shrink-0"
                                                       >
                                                         {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -299,7 +299,9 @@ export default function InsightsPage() {
                         <Sparkles size={32} className="text-armadillo-muted/40 mx-auto mb-4" />
                         <h3 className="font-display text-lg text-armadillo-text mb-2">No AI insights yet</h3>
                         <p className="text-sm text-armadillo-muted max-w-md mx-auto">
-                          Click &ldquo;Generate Insights&rdquo; above to analyze your content performance with AI.
+                          {posts.length > 0
+                            ? 'Click "Generate Insights" above to analyze your content performance with AI.'
+                            : 'Fetch your platform data first, then come back to generate AI insights.'}
                         </p>
                       </div>
                     )}
