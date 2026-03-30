@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
               access: 'public',
               contentType: parsed.contentType,
               addRandomSuffix: false,
+              allowOverwrite: true,
             });
 
             console.log(`[image-upload] Uploaded: ${filename} → ${blob.url}`);
@@ -107,6 +108,7 @@ export async function POST(request: NextRequest) {
             access: 'public',
             contentType,
             addRandomSuffix: false,
+              allowOverwrite: true,
           });
           results[url] = blob.url;
         } catch {

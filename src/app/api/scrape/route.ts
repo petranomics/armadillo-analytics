@@ -19,40 +19,42 @@ async function persistImage(url: string): Promise<string> {
 
   try {
     const res = await fetch(url);
-    if (!res.ok) return url;
+    if (!res.ok) {
+      console.warn(`[persistImage] Fetch failed (${res.status}) for ${url.slice(0, 60)}...`);
+      return url;
+    }
 
     const buffer = Buffer.from(await res.arrayBuffer());
-    if (buffer.length === 0) return url;
+    if (buffer.length === 0) {
+      console.warn(`[persistImage] Empty response for ${url.slice(0, 60)}...`);
+      return url;
+    }
 
     const contentType = res.headers.get('content-type') || 'image/jpeg';
     const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
     const filename = `media-kit/${hashPath(url)}.${ext}`;
 
+    console.log(`[persistImage] Uploading ${buffer.length} bytes as ${filename}...`);
     const blob = await put(filename, buffer, {
       access: 'public',
       contentType,
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
+    console.log(`[persistImage] Success: ${blob.url}`);
     return blob.url;
-  } catch {
+  } catch (err) {
+    console.error(`[persistImage] Error for ${url.slice(0, 60)}:`, err instanceof Error ? err.message : err);
     return url;
   }
 }
 
-/** Persist multiple images in parallel, returning a url→blobUrl mapping */
+/** Persist images sequentially to avoid overwhelming connections */
 async function persistImages(urls: string[]): Promise<Record<string, string>> {
   const mapping: Record<string, string> = {};
-  const results = await Promise.allSettled(
-    urls.map(async (url) => {
-      mapping[url] = await persistImage(url);
-    })
-  );
-  // Log any failures
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      console.warn(`[scrape] Failed to persist image ${i}:`, r.reason);
-    }
-  });
+  for (const url of urls) {
+    mapping[url] = await persistImage(url);
+  }
   return mapping;
 }
 
@@ -98,12 +100,13 @@ export async function POST(request: NextRequest) {
         if (post.displayUrl) imageUrls.push(String(post.displayUrl));
       }
 
+      console.log(`[scrape] BLOB_READ_WRITE_TOKEN exists: ${!!process.env.BLOB_READ_WRITE_TOKEN}`);
+      console.log(`[scrape] Found ${imageUrls.length} images to persist`);
+
       // Upload to Vercel Blob while CDN URLs are still fresh
       const urlMapping = imageUrls.length > 0 ? await persistImages(imageUrls) : {};
       const persisted = Object.values(urlMapping).filter(v => v.includes('.vercel-storage.com')).length;
-      if (persisted > 0) {
-        console.log(`[scrape] Persisted ${persisted}/${imageUrls.length} images to Blob`);
-      }
+      console.log(`[scrape] Persisted ${persisted}/${imageUrls.length} images to Blob`);
 
       // Replace CDN URLs with Blob URLs in the response
       const persistedAvatar = profile.profilePicUrlHD
