@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Settings, BarChart3, Sparkles, Share2, FileText } from 'lucide-react';
+import { Show, UserButton, SignInButton, useUser } from '@clerk/nextjs';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import { getUserProfile, type UserProfile } from '@/lib/store';
 import type { Platform } from '@/lib/types';
@@ -19,6 +20,7 @@ const platformIcons: Record<Platform, string> = {
 export default function Sidebar() {
   const pathname = usePathname();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const { isSignedIn, user } = useUser();
 
   useEffect(() => {
     const p = getUserProfile();
@@ -26,6 +28,13 @@ export default function Sidebar() {
       setProfile(p);
     }
   }, []);
+
+  // Sync Clerk user to Neon on first sign-in
+  useEffect(() => {
+    if (isSignedIn && user) {
+      fetch('/api/auth/sync', { method: 'POST' }).catch(() => {});
+    }
+  }, [isSignedIn, user]);
 
   // Show only selected platforms, or all if not onboarded
   const platforms = profile?.selectedPlatforms || (['tiktok', 'instagram', 'youtube', 'twitter', 'linkedin'] as Platform[]);
@@ -164,19 +173,21 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="p-4 border-t border-armadillo-border">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-[11px] text-armadillo-muted">
-              {profile ? `${planLabel} Plan` : 'Demo Mode'}
-            </span>
-          </div>
-          {profile && (
+        <Show when="signed-in">
+          <div className="flex items-center justify-between px-1">
+            <UserButton />
             <span className="text-[9px] bg-burnt/20 text-burnt px-2 py-0.5 rounded-full font-medium uppercase tracking-wider">
               {planLabel}
             </span>
-          )}
-        </div>
+          </div>
+        </Show>
+        <Show when="signed-out">
+          <SignInButton mode="modal">
+            <button className="w-full py-2 px-4 text-sm font-medium text-armadillo-text bg-burnt/20 hover:bg-burnt/30 rounded-lg transition-colors">
+              Sign In
+            </button>
+          </SignInButton>
+        </Show>
       </div>
     </aside>
   );

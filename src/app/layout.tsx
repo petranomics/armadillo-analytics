@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bodoni_Moda, Lexend } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import LayoutShell from "@/components/layout/LayoutShell";
 
@@ -28,7 +29,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${bodoniModa.variable} ${lexend.variable} antialiased`}>
-        <LayoutShell>{children}</LayoutShell>
+        <ClerkProvider>
+          <LayoutShell>{children}</LayoutShell>
+        </ClerkProvider>
       </body>
     </html>
   );
