@@ -1,5 +1,6 @@
 import type { UserType } from './user-types';
 import { USER_TYPES } from './user-types';
+import { computeCompoundMetrics } from './compound-metrics';
 
 // ============ DATA MODEL ============
 
@@ -26,6 +27,13 @@ export interface MediaKitStats {
   viewsToEngPct: number;
   avgCommentsPerPost: number;
   shareRate: number;
+  // Monetization & collaboration metrics
+  estimatedCPM: number;
+  estimatedPostValue: number;
+  brandReadinessScore: number;
+  conversationRate: number;   // comments / followers %
+  amplificationRate: number;  // shares / followers %
+  viralityRate: number;       // shares / (likes + comments) %
 }
 
 export interface MediaKitData {
@@ -184,11 +192,11 @@ export const ONE_SHEET_CONFIG: Record<UserType, OneSheetConfig> = {
     statKeys: [
       { key: 'followers', label: 'Followers' },
       { key: 'engagementRate', label: 'Eng. Rate' },
-      { key: 'totalLikes', label: 'Total Likes' },
+      { key: 'estimatedPostValue', label: 'Est. Post Value' },
       { key: 'avgViewsPerPost', label: 'Avg Views/Post' },
-      { key: 'totalComments', label: 'Comments' },
+      { key: 'conversationRate', label: 'Conversation Rate' },
+      { key: 'brandReadinessScore', label: 'Brand Ready' },
       { key: 'avgEngPerPost', label: 'Avg Eng/Post' },
-      { key: 'totalPosts', label: 'Total Posts' },
       { key: 'postingFreq', label: 'Posting Freq' },
     ],
     offeringsLabel: 'Sponsorship Packages',
@@ -219,9 +227,9 @@ export const ONE_SHEET_CONFIG: Record<UserType, OneSheetConfig> = {
       { key: 'followers', label: 'Followers' },
       { key: 'avgViewsPerPost', label: 'Avg Views' },
       { key: 'engagementRate', label: 'Eng. Rate' },
-      { key: 'totalViews', label: 'Total Views' },
-      { key: 'totalLikes', label: 'Total Likes' },
-      { key: 'avgEngPerPost', label: 'Avg Eng/Post' },
+      { key: 'viralityRate', label: 'Virality' },
+      { key: 'estimatedPostValue', label: 'Est. Post Value' },
+      { key: 'amplificationRate', label: 'Amplification' },
       { key: 'totalShares', label: 'Total Shares' },
       { key: 'postingFreq', label: 'Posting Freq' },
     ],
@@ -310,6 +318,12 @@ const DEFAULT_MEDIA_KIT: MediaKitData = {
     viewsToEngPct: 0,
     avgCommentsPerPost: 0,
     shareRate: 0,
+    estimatedCPM: 0,
+    estimatedPostValue: 0,
+    brandReadinessScore: 0,
+    conversationRate: 0,
+    amplificationRate: 0,
+    viralityRate: 0,
   },
   selectedStatKeys: [],
   offerings: [],
@@ -597,6 +611,40 @@ export function populateFromExportData(
       shareRate: totalEng > 0
         ? Math.round((computedMetrics.totalShares / totalEng) * 100 * 10) / 10
         : 0,
+      // Monetization metrics — computed from compound-metrics engine
+      ...(() => {
+        // Build minimal Post-shaped objects for the compound metrics engine
+        const postsForCompound = posts.map((p, i) => ({
+          id: `mk-${i}`,
+          platform: (profile.platform || 'instagram') as 'instagram',
+          url: '',
+          caption: '',
+          publishedAt: p.publishedAt || '',
+          metrics: {
+            likes: getLikes(p),
+            comments: getComments(p),
+            views: getViews(p),
+            shares: p.metrics?.shares ?? 0,
+            saves: p.metrics?.saves ?? 0,
+          },
+          engagementRate: p.engagementRate ?? 0,
+          hashtags: p.hashtags,
+          mentions: p.mentions,
+          taggedUsers: p.taggedUsers?.map(u => ({ username: u.username })),
+          locationName: undefined,
+          musicInfo: undefined,
+          contentType: p.type || p.contentType || p.productType,
+        }));
+        const cm = computeCompoundMetrics(postsForCompound, profile.followers);
+        return {
+          estimatedCPM: cm.estimatedCPM ?? 0,
+          estimatedPostValue: cm.estimatedPostValue ?? 0,
+          brandReadinessScore: cm.brandReadinessScore ?? 0,
+          conversationRate: cm.conversationRate ?? 0,
+          amplificationRate: cm.amplificationRate ?? 0,
+          viralityRate: cm.viralityRate ?? 0,
+        };
+      })(),
     },
     // Auto-computed insights from post data
     contentMix: existing.contentMix?.length ? existing.contentMix : computeContentMix(posts),
@@ -631,6 +679,12 @@ export const ALL_STAT_OPTIONS: { key: keyof MediaKitStats; label: string }[] = [
   { key: 'viewsToEngPct', label: 'View\u2192Eng Rate' },
   { key: 'avgCommentsPerPost', label: 'Avg Comments / Post' },
   { key: 'shareRate', label: 'Share Rate' },
+  { key: 'estimatedCPM', label: 'Est. CPM' },
+  { key: 'estimatedPostValue', label: 'Est. Post Value' },
+  { key: 'brandReadinessScore', label: 'Brand Readiness' },
+  { key: 'conversationRate', label: 'Conversation Rate' },
+  { key: 'amplificationRate', label: 'Amplification Rate' },
+  { key: 'viralityRate', label: 'Virality Rate' },
 ];
 
 export const SOCIAL_PLATFORM_OPTIONS = [
@@ -653,8 +707,18 @@ export function formatStatValue(key: keyof MediaKitStats, value: string | number
   if (key === 'engagementRate') return `${value}%`;
   if (key === 'viewsToEngPct') return `${value}%`;
   if (key === 'shareRate') return `${value}%`;
+  if (key === 'conversationRate') return `${value}%`;
+  if (key === 'amplificationRate') return `${value}%`;
+  if (key === 'viralityRate') return `${value}%`;
   if (key === 'postingFreq') return String(value) || '--';
   if (key === 'likesPerComment') return `${value}:1`;
+  if (key === 'brandReadinessScore') return `${value}/100`;
+  if (key === 'estimatedCPM') return `$${value}`;
+  if (key === 'estimatedPostValue') {
+    const n = Number(value);
+    if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
+    return `$${n}`;
+  }
   const n = Number(value);
   if (isNaN(n)) return String(value);
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';

@@ -15,7 +15,10 @@ import CollabTrackerCard from '@/components/cards/CollabTrackerCard';
 import AudioInsightsCard from '@/components/cards/AudioInsightsCard';
 import DataTable from '@/components/ui/DataTable';
 import { persistImagesClientSide } from '@/lib/image-cache';
-import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database, ExternalLink, Calendar, Download, Loader2 } from 'lucide-react';
+import { Users, UserPlus, Grid3X3, TrendingUp, Eye, Heart, MessageCircle, BarChart3, Bookmark, RefreshCw, AlertCircle, Database, ExternalLink, Calendar, Download, Loader2, Share2, Zap, Target } from 'lucide-react';
+import { computeCompoundMetrics } from '@/lib/compound-metrics';
+import CompoundMetricCard from '@/components/cards/CompoundMetricCard';
+import BrandReadinessCard from '@/components/cards/BrandReadinessCard';
 
 // Metrics that are NOT available from public scraping per platform
 const UNAVAILABLE_METRICS: Record<string, string[]> = {
@@ -502,6 +505,107 @@ export default function PlatformPage({ mockData, platform }: PlatformPageProps) 
                                         <KpiCard label="Total Shares" value={formatNumber(totalShares)} icon={<Bookmark size={14} />} />
                                     )}
                             </div>
+
+                    {/* Engagement Quality */}
+                    {(() => {
+                        const cm = computeCompoundMetrics(posts, profile.followers);
+                        return (
+                            <>
+                                <h2 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Engagement Quality</h2>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+                                    <CompoundMetricCard
+                                        label="Conversation Rate"
+                                        value={cm.conversationRate !== null ? `${cm.conversationRate}%` : '--'}
+                                        subtitle="Comments per follower"
+                                        tooltip="Measures how much your content sparks real discussion. We take your total comments and divide by your follower count. A higher number means people aren't just scrolling past — they're stopping to respond. Anything above 1% is strong."
+                                        icon={<MessageCircle size={14} />}
+                                        sentiment={cm.conversationRate && cm.conversationRate > 1 ? 'positive' : 'neutral'}
+                                    />
+                                    <CompoundMetricCard
+                                        label="Amplification"
+                                        value={cm.amplificationRate !== null ? `${cm.amplificationRate}%` : '--'}
+                                        subtitle="Shares per follower"
+                                        tooltip="Shows how often your audience shares your content with their own network. We divide your total shares by your follower count. When people share, they're putting their own reputation behind your content — this is the strongest signal of value."
+                                        icon={<Share2 size={14} />}
+                                        sentiment={cm.amplificationRate && cm.amplificationRate > 0.5 ? 'positive' : 'neutral'}
+                                    />
+                                    <CompoundMetricCard
+                                        label="Virality"
+                                        value={cm.viralityRate !== null ? `${cm.viralityRate}%` : '--'}
+                                        subtitle="How far content spreads"
+                                        tooltip="Of everyone who liked or commented on your posts, what percentage also shared it? This tells you how much your content spreads beyond just getting a reaction. High virality means your content has legs — people feel compelled to pass it along."
+                                        icon={<Zap size={14} />}
+                                        sentiment={cm.viralityRate && cm.viralityRate > 5 ? 'positive' : 'neutral'}
+                                    />
+                                    <CompoundMetricCard
+                                        label="Views → Action"
+                                        value={cm.viewsToEngRate !== null ? `${cm.viewsToEngRate}%` : '--'}
+                                        subtitle="Viewers who engage"
+                                        tooltip="Out of everyone who viewed your content, what percentage actually liked, commented, or shared? Most people scroll past without engaging — so even a few percent here is meaningful. This tells you how compelling your content is to casual viewers."
+                                        icon={<Target size={14} />}
+                                        sentiment={cm.viewsToEngRate && cm.viewsToEngRate > 3 ? 'positive' : 'neutral'}
+                                    />
+                                    <CompoundMetricCard
+                                        label="Consistency"
+                                        value={cm.postingConsistency !== null ? `${cm.postingConsistency}%` : '--'}
+                                        subtitle="Engagement predictability"
+                                        tooltip="How predictable is your engagement from post to post? We measure the variation across all your recent posts. 100% would mean every post performs identically. Higher consistency tells brands they can reliably expect a certain level of engagement when they partner with you."
+                                        icon={<Target size={14} />}
+                                        sentiment={cm.postingConsistency && cm.postingConsistency > 60 ? 'positive' : cm.postingConsistency && cm.postingConsistency < 30 ? 'negative' : 'neutral'}
+                                    />
+                                </div>
+
+                                {/* Brand Readiness */}
+                                {cm.brandReadinessScore !== null && (
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+                                        <BrandReadinessCard metrics={cm} />
+                                        <div className="lg:col-span-2 grid grid-cols-2 gap-3">
+                                            {cm.hashtagLift !== null && (
+                                                <CompoundMetricCard
+                                                    label="Hashtag Lift"
+                                                    value={`${cm.hashtagLift > 0 ? '+' : ''}${cm.hashtagLift}%`}
+                                                    subtitle="Engagement with hashtags"
+                                                    tooltip="We compared the average engagement on your posts that use hashtags versus those that don't. A positive number means hashtags are boosting your reach. A negative number means your audience responds better to cleaner captions."
+                                                    icon={<span className="text-sm">#</span>}
+                                                    sentiment={cm.hashtagLift > 5 ? 'positive' : cm.hashtagLift < -5 ? 'negative' : 'neutral'}
+                                                />
+                                            )}
+                                            {cm.collabMultiplier !== null && (
+                                                <CompoundMetricCard
+                                                    label="Collab Effect"
+                                                    value={`${cm.collabMultiplier > 0 ? '+' : ''}${cm.collabMultiplier}%`}
+                                                    subtitle="Engagement with collabs"
+                                                    tooltip="We compared the average engagement on posts where you tagged other creators versus posts where you didn't. A positive number means collaborations are expanding your reach to new audiences. This is a strong signal for brands looking at partnership potential."
+                                                    icon={<Users size={14} />}
+                                                    sentiment={cm.collabMultiplier > 5 ? 'positive' : cm.collabMultiplier < -5 ? 'negative' : 'neutral'}
+                                                />
+                                            )}
+                                            {cm.locationBoost !== null && (
+                                                <CompoundMetricCard
+                                                    label="Location Boost"
+                                                    value={`${cm.locationBoost > 0 ? '+' : ''}${cm.locationBoost}%`}
+                                                    subtitle="Engagement with location"
+                                                    tooltip="We compared engagement on posts with a location tag versus those without. Location tags can help your content surface in local searches and explore pages. A positive number means geo-tagging is working for you."
+                                                    icon={<span className="text-sm">📍</span>}
+                                                    sentiment={cm.locationBoost > 5 ? 'positive' : cm.locationBoost < -5 ? 'negative' : 'neutral'}
+                                                />
+                                            )}
+                                            {cm.contentTypeWinner && (
+                                                <CompoundMetricCard
+                                                    label="Top Format"
+                                                    value={cm.contentTypeWinner.type}
+                                                    subtitle={`${cm.contentTypeWinner.avgEng.toLocaleString()} avg eng`}
+                                                    tooltip="We grouped all your posts by format — reels, carousels, photos, etc. — and compared their average engagement. This is the format that consistently performs best for your audience. Consider making more content in this format."
+                                                    icon={<BarChart3 size={14} />}
+                                                    sentiment="positive"
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        );
+                    })()}
 
                     {/* Charts */}
                     <h2 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-3">Charts</h2>
