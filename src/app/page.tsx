@@ -294,32 +294,36 @@ export default function DashboardPage() {
                         <CompoundMetricCard
                             label="Conversation Rate"
                             value={cm?.conversationRate !== null && cm?.conversationRate !== undefined ? `${cm.conversationRate}%` : '--'}
-                            subtitle="Comments per follower"
-                            tooltip="Measures how much your content sparks real discussion. We take your total comments and divide by your follower count. A higher number means people aren't just scrolling past — they're stopping to respond. Anything above 1% is strong."
+                            subtitle="Comments relative to audience size"
+                            tooltip="Total comments divided by follower count. Indicates whether your audience actively participates or passively consumes. Above 1% is a strong benchmark — it means your content is prompting real responses, not just drive-by likes."
                             icon={<MessageCircle size={14} />}
                             sentiment={cm?.conversationRate && cm.conversationRate > 1 ? 'positive' : 'neutral'}
                         />
-                        <CompoundMetricCard
-                            label="Amplification Rate"
-                            value={cm?.amplificationRate !== null && cm?.amplificationRate !== undefined ? `${cm.amplificationRate}%` : '--'}
-                            subtitle="Shares per follower"
-                            tooltip="Shows how often your audience shares your content with their own network. We divide your total shares by your follower count. When people share, they're putting their own reputation behind your content — this is the strongest signal of value."
-                            icon={<Share2 size={14} />}
-                            sentiment={cm?.amplificationRate && cm.amplificationRate > 0.5 ? 'positive' : 'neutral'}
-                        />
-                        <CompoundMetricCard
-                            label="Virality Rate"
-                            value={cm?.viralityRate !== null && cm?.viralityRate !== undefined ? `${cm.viralityRate}%` : '--'}
-                            subtitle="How far content spreads"
-                            tooltip="Of everyone who liked or commented on your posts, what percentage also shared it? This tells you how much your content spreads beyond just getting a reaction. High virality means your content has legs — people feel compelled to pass it along."
-                            icon={<Zap size={14} />}
-                            sentiment={cm?.viralityRate && cm.viralityRate > 5 ? 'positive' : 'neutral'}
-                        />
+                        {cm?.amplificationRate !== null && cm?.amplificationRate !== undefined && (
+                            <CompoundMetricCard
+                                label="Amplification Rate"
+                                value={`${cm.amplificationRate}%`}
+                                subtitle="Shares relative to audience size"
+                                tooltip="Total shares divided by follower count. A share means someone is endorsing your content to their own network. This is the metric that drives organic growth — each share extends your reach beyond your existing audience."
+                                icon={<Share2 size={14} />}
+                                sentiment={cm.amplificationRate > 0.5 ? 'positive' : 'neutral'}
+                            />
+                        )}
+                        {cm?.viralityRate !== null && cm?.viralityRate !== undefined && (
+                            <CompoundMetricCard
+                                label="Virality Rate"
+                                value={`${cm.viralityRate}%`}
+                                subtitle="Share-through on engaged viewers"
+                                tooltip="Of the people who liked or commented, what percentage also shared? Separates content that gets a reaction from content that gets distributed. Above 5% means your posts are consistently moving beyond your feed and into other people's."
+                                icon={<Zap size={14} />}
+                                sentiment={cm.viralityRate > 5 ? 'positive' : 'neutral'}
+                            />
+                        )}
                         <CompoundMetricCard
                             label="Views → Action"
                             value={cm?.viewsToEngRate !== null && cm?.viewsToEngRate !== undefined ? `${cm.viewsToEngRate}%` : '--'}
-                            subtitle="Viewers who engage"
-                            tooltip="Out of everyone who viewed your content, what percentage actually liked, commented, or shared? Most people scroll past without engaging — so even a few percent here is meaningful. This tells you how compelling your content is to casual viewers."
+                            subtitle="Conversion from viewer to participant"
+                            tooltip="Percentage of viewers who took an action — liked, commented, or shared. Most viewers scroll without engaging, so even single-digit percentages indicate strong content. If this number is climbing, your hooks and calls to action are working."
                             icon={<Target size={14} />}
                             sentiment={cm?.viewsToEngRate && cm.viewsToEngRate > 3 ? 'positive' : 'neutral'}
                         />
@@ -330,8 +334,8 @@ export default function DashboardPage() {
                         <CompoundMetricCard
                             label="Comment:Like Ratio"
                             value={cm?.commentToLikeRatio !== null && cm?.commentToLikeRatio !== undefined ? `${cm.commentToLikeRatio}%` : '--'}
-                            subtitle={cm?.commentToLikeRatio && cm.commentToLikeRatio > 5 ? 'Deep engagement' : 'Passive scrolling'}
-                            tooltip="Compares how many people comment versus just double-tapping a like. A like takes zero effort; a comment means someone cared enough to type something. Higher means your audience is genuinely invested, not just passively scrolling. Over 5% suggests real community engagement."
+                            subtitle={cm?.commentToLikeRatio && cm.commentToLikeRatio > 5 ? 'Active community' : 'Low-effort engagement'}
+                            tooltip="Comments require effort; likes do not. A higher ratio here means your audience is invested enough to write something, not just tap and move on. Above 5% indicates a real community dynamic. Below that, most engagement is surface-level."
                             icon={<MessageCircle size={14} />}
                             sentiment={cm?.commentToLikeRatio && cm.commentToLikeRatio > 5 ? 'positive' : 'neutral'}
                         />
@@ -339,8 +343,8 @@ export default function DashboardPage() {
                             <CompoundMetricCard
                                 label="Save Rate"
                                 value={`${cm.saveRate}%`}
-                                subtitle="Bookmark-worthy content"
-                                tooltip="Of all engagement on your posts, what percentage were saves/bookmarks? When someone saves your post, they're saying 'I want to come back to this.' It's one of the strongest signals that your content provides lasting value — not just a quick dopamine hit."
+                                subtitle="Content with staying power"
+                                tooltip="Percentage of total engagement that came from saves or bookmarks. A save means someone plans to revisit your content — it signals reference value, not just entertainment. Educational content, tutorials, and resource lists tend to score highest here."
                                 icon={<Bookmark size={14} />}
                                 sentiment={cm.saveRate > 3 ? 'positive' : 'neutral'}
                             />
@@ -349,8 +353,8 @@ export default function DashboardPage() {
                             <CompoundMetricCard
                                 label="Consistency"
                                 value={`${cm.postingConsistency}%`}
-                                subtitle="Engagement predictability"
-                                tooltip="How predictable is your engagement from post to post? We measure the variation across all your recent posts. 100% would mean every post performs identically. Higher consistency tells brands they can reliably expect a certain level of engagement when they partner with you."
+                                subtitle="Performance reliability"
+                                tooltip="Measures how stable your engagement is across posts. Scored 0-100, where higher means less variance between your best and worst posts. Brands prioritize consistency — they need to predict the return on a sponsored post before writing the check."
                                 icon={<Target size={14} />}
                                 sentiment={cm.postingConsistency > 60 ? 'positive' : cm.postingConsistency < 30 ? 'negative' : 'neutral'}
                             />

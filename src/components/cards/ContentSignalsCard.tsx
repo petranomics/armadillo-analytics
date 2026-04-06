@@ -36,10 +36,10 @@ function InlineTooltip({ text }: { text: string }) {
 
 export default function ContentSignalsCard({ metrics }: { metrics: CompoundMetrics }) {
   const signals: Signal[] = [
-    { label: 'Hashtag Lift', value: metrics.hashtagLift, suffix: '%', description: 'Eng boost with hashtags', tooltip: 'We compared average engagement on your posts with hashtags versus those without. A positive percentage means hashtags are helping your content get discovered by new people.' },
-    { label: 'Collab Multiplier', value: metrics.collabMultiplier, suffix: '%', description: 'Eng boost with tagged creators', tooltip: 'We compared engagement on posts where you tagged other creators versus solo posts. A positive number means collaborating exposes your content to a wider, more engaged audience.' },
-    { label: 'Location Boost', value: metrics.locationBoost, suffix: '%', description: 'Eng boost with location tags', tooltip: 'We compared engagement on geo-tagged posts versus untagged ones. Location tags can help your content appear in local explore feeds and searches.' },
-    { label: 'Audio Effect', value: metrics.originalAudioEffect, suffix: '%', description: 'Original vs licensed audio', tooltip: 'We compared engagement on posts using your own original audio versus trending or licensed sounds. This shows whether your audience prefers your voice or responds more to popular music and trends.' },
+    { label: 'Hashtag Lift', value: metrics.hashtagLift, suffix: '%', description: 'With vs without hashtags', tooltip: 'Average engagement on hashtagged posts compared to untagged. Positive means they are expanding reach. Negative means cleaner captions perform better for your audience.' },
+    { label: 'Collab Multiplier', value: metrics.collabMultiplier, suffix: '%', description: 'With vs without tagged creators', tooltip: 'Average engagement on posts with tagged creators versus solo posts. Positive indicates cross-pollination is working — relevant when pitching brand partnerships.' },
+    { label: 'Location Boost', value: metrics.locationBoost, suffix: '%', description: 'With vs without geo-tags', tooltip: 'Average engagement on geo-tagged posts versus untagged. Location tags surface content in local explore and search. Particularly valuable for local business partnerships.' },
+    { label: 'Audio Effect', value: metrics.originalAudioEffect, suffix: '%', description: 'Original vs trending audio', tooltip: 'Average engagement on original audio posts versus trending or licensed sounds. Shows whether your audience connects more with your voice or with popular audio trends.' },
   ].filter(s => s.value !== null);
 
   const hasCaptionData = metrics.captionLengthImpact !== null;

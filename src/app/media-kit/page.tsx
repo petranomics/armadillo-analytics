@@ -18,7 +18,7 @@ import { USER_TYPES } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import MediaKitForm from '@/components/media-kit/MediaKitForm';
 import OneSheet from '@/components/media-kit/OneSheet';
-import { Save, CheckCircle, Download, Loader2, Link2, AlertCircle, Lightbulb, ArrowLeft } from 'lucide-react';
+import { Save, CheckCircle, Download, Loader2, Link2, AlertCircle, Lightbulb, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
 const MEDIA_KIT_SUBTITLES: Record<string, string> = {
@@ -174,6 +174,18 @@ export default function MediaKitPage() {
     });
   }, []);
 
+  const handleRefresh = () => {
+    const profile = getUserProfile();
+    const { exportData, photos } = loadAllPlatformData(profile.selectedPlatforms);
+    if (exportData) {
+      setMediaKit(prev => {
+        if (!prev) return prev;
+        return populateFromExportData(prev, exportData, profile.userType);
+      });
+      setAvailablePhotos(photos);
+    }
+  };
+
   const handleSave = () => {
     if (!mediaKit) return;
     saveMediaKit(mediaKit);
@@ -237,6 +249,14 @@ export default function MediaKitPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-muted px-4 py-2.5 rounded-lg text-xs font-medium hover:text-armadillo-text hover:border-burnt/50 transition-all"
+            title="Pull latest analytics data into your media kit"
+          >
+            <RefreshCw size={14} />
+            Refresh Data
+          </button>
           <button
             onClick={handleSave}
             className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border text-armadillo-text px-5 py-2.5 rounded-lg text-xs font-medium hover:border-burnt/50 hover:shadow-md transition-all"

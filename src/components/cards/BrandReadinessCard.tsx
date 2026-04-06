@@ -58,7 +58,7 @@ export default function BrandReadinessCard({ metrics }: { metrics: CompoundMetri
     <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xs font-semibold text-armadillo-text uppercase tracking-wider">Brand Readiness</h3>
-        <Tooltip text="Your overall readiness to work with brands, scored from 0 to 100. This combines your engagement rate, follower count, posting consistency, how often you use hashtags and collaborations, your content volume, and how regularly you post. A score above 80 means you have the engagement, reach, and reliability that brands typically look for.">
+        <Tooltip text="Composite score (0-100) based on six factors: engagement rate, follower tier, posting consistency, content strategy signals (hashtags, collabs), post volume, and posting frequency. 80+ positions you for paid partnerships. 60-79 means the fundamentals are there — focus on consistency and engagement to close the gap.">
           <HelpCircle size={12} className="text-armadillo-muted/40 hover:text-armadillo-muted transition-colors" />
         </Tooltip>
       </div>
@@ -84,7 +84,7 @@ export default function BrandReadinessCard({ metrics }: { metrics: CompoundMetri
       {/* Estimates */}
       <div className="grid grid-cols-2 gap-2">
         {estimatedCPM !== null && (
-          <Tooltip text="Estimated cost per 1,000 impressions. Based on industry benchmarks ($5-30 range), adjusted upward for your engagement rate. Higher engagement means brands get more value per view, so they pay more. This is what advertisers would expect to pay to reach your audience.">
+          <Tooltip text="Estimated cost per 1,000 impressions. Industry range is $5-30, scaled by your engagement rate. Higher engagement commands a premium because each impression is more likely to convert. Use this as a floor when negotiating media buys.">
             <div className="bg-armadillo-bg rounded-lg p-2.5 text-center cursor-help w-full">
               <div className="font-display text-lg text-armadillo-text">${estimatedCPM}</div>
               <div className="flex items-center justify-center gap-1">
@@ -95,7 +95,7 @@ export default function BrandReadinessCard({ metrics }: { metrics: CompoundMetri
           </Tooltip>
         )}
         {estimatedPostValue !== null && (
-          <Tooltip text={`Estimated dollar value of a single sponsored post. Calculated by taking your follower count, dividing by 1,000, multiplying by your estimated CPM ($${estimatedCPM}), then scaling up based on your engagement rate. Creators with higher engagement command a premium because their audience actually pays attention. This is a starting point for negotiations — your actual rate may vary based on your niche, content quality, and usage rights.`}>
+          <Tooltip text={`Estimated starting rate for a single sponsored post. Formula: (followers / 1,000) × CPM ($${estimatedCPM}) × engagement multiplier. Your engagement rate pushes this above baseline because an active audience delivers more value per impression. Use this as a negotiation anchor — actual rates should factor in exclusivity, usage rights, and deliverable complexity.`}>
             <div className="bg-armadillo-bg rounded-lg p-2.5 text-center cursor-help w-full">
               <div className="font-display text-lg text-armadillo-text">{formatDollar(estimatedPostValue)}</div>
               <div className="flex items-center justify-center gap-1">

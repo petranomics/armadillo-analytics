@@ -7,92 +7,92 @@ export function getAIOneLiner(metric: MetricDefinition, trend: number): string {
 
   const insights: Record<string, [string, string]> = {
     engagement_rate: [
-      strong ? `Strong momentum — your audience is ${abs}% more engaged than last period` : `Steady engagement — your content is resonating consistently`,
-      strong ? `Engagement dropped ${abs}% — try experimenting with new content formats` : `Slight dip — normal fluctuation, keep your posting rhythm`,
+      strong ? `Up ${abs}% — audience interaction is accelerating` : `Holding steady — consistent engagement across recent posts`,
+      strong ? `Down ${abs}% — review recent content mix and posting times` : `Minor dip — within normal range, monitor over the next cycle`,
     ],
     likes: [
-      strong ? `Likes are surging — your recent content is hitting with your audience` : `Likes holding steady — your audience is consistently showing love`,
-      strong ? `Like count is cooling off — your last few posts may need stronger hooks` : `Small dip in likes — try posting during your peak hours`,
+      strong ? `Likes up — recent posts are landing with your audience` : `Likes stable — reliable baseline performance`,
+      strong ? `Like velocity slowing — test stronger opening hooks` : `Slight pullback — check if posting cadence shifted`,
     ],
     follower_growth: [
-      strong ? `You're gaining followers faster than usual — something's working` : `Steady growth — you're building a loyal audience`,
-      strong ? `Growth slowed — consider collaborations or trending content to re-accelerate` : `Slight slowdown — this is normal after a growth spike`,
+      strong ? `Accelerating — current strategy is driving net new followers` : `Steady growth — audience building at a healthy pace`,
+      strong ? `Growth stalled — consider collabs or trend-aligned content to restart` : `Marginal slowdown — typical after a growth surge`,
     ],
     comments: [
-      `Comments are up ${abs}% — your audience wants to talk, keep the conversation going`,
-      `Comments dipped — try ending captions with a question to spark discussion`,
+      `Comments up ${abs}% — audience is actively participating`,
+      `Comments dropped — end captions with a direct question to prompt responses`,
     ],
     shares: [
-      `Your content is being shared more — this is your strongest growth lever`,
-      `Fewer shares this period — create more "save & share" worthy content`,
+      `Share volume increasing — content is resonating beyond your core audience`,
+      `Fewer shares — focus on utility-driven or opinion-based posts that prompt forwarding`,
     ],
     saves: [
-      `Saves are climbing — people want to come back to your content, that's high intent`,
-      `Saves are down — educational or list-style content tends to boost this metric`,
+      `Saves climbing — audience finds your content reference-worthy`,
+      `Saves declining — educational posts, lists, and how-tos tend to recover this metric`,
     ],
     reach: [
-      strong ? `Your reach expanded ${abs}% — the algorithm is pushing your content to new audiences` : `Reach is stable — your content is consistently getting in front of people`,
-      strong ? `Reach contracted ${abs}% — hashtags and posting times could help here` : `Slight reach dip — try posting more Reels to boost discovery`,
+      strong ? `Reach expanded ${abs}% — content is surfacing for new audiences` : `Reach steady — maintaining current distribution levels`,
+      strong ? `Reach contracted ${abs}% — review hashtag strategy and posting windows` : `Small reach dip — test Reels or short-form to boost discovery`,
     ],
     impressions: [
-      `More eyeballs on your content — your posts are appearing in feeds ${abs}% more often`,
-      `Impressions down — your content may be getting less priority in the feed`,
+      `Impressions up — posts appearing in feeds ${abs}% more frequently`,
+      `Impressions down — content may be deprioritized in the feed algorithm`,
     ],
     views: [
-      `Video views are up — your thumbnails and hooks are working`,
-      `Views dipped — the first 3 seconds of your video are critical for retention`,
+      `Video views up — thumbnails and hooks are performing well`,
+      `Views dropped — the first 3 seconds determine retention, tighten your opening`,
     ],
     profile_views: [
-      `More people are checking out your profile — your content is sparking curiosity`,
-      `Profile visits slowed — make sure your bio and pinned posts are compelling`,
+      `Profile visits increasing — content is driving curiosity about your brand`,
+      `Profile visits declining — audit your bio and pinned content for conversion`,
     ],
     website_taps: [
-      `Website traffic from social is up — your CTAs are driving action`,
-      `Fewer website taps — try adding clearer calls-to-action in your content`,
+      `Website traffic from social up — calls to action are converting`,
+      `Website taps down — strengthen CTAs and test link placement in Stories`,
     ],
     story_completion: [
-      `Viewers are watching your Stories all the way through — great pacing`,
-      `Story drop-off increased — keep Stories under 7 frames for better completion`,
+      `Story completion rate strong — pacing and length are well-calibrated`,
+      `Story drop-off increasing — cap at 5-7 frames for better completion`,
     ],
     reel_retention: [
-      `Reel retention is strong — your audience is watching longer`,
-      `Reel retention dropped — try front-loading your best content in the first 2 seconds`,
+      `Reel retention solid — audience watching through`,
+      `Retention slipping — front-load the payoff in the first 2 seconds`,
     ],
     top_posts: [
-      `Your top content is outperforming your average — lean into these formats`,
-      `Top post performance dipped — review what worked in your best content last month`,
+      `Top performers outpacing your average — identify the pattern and replicate`,
+      `Top post performance flattening — review last month's best content for format cues`,
     ],
     best_posting_times: [
-      `Your posting windows are aligned with audience activity — good timing`,
-      `You may be missing your audience's peak hours — check your active-hours data`,
+      `Posting windows aligned with peak audience activity`,
+      `May be missing peak hours — cross-reference with your activity heatmap`,
     ],
     hashtag_performance: [
-      `Your hashtags are driving more discovery than last period`,
-      `Hashtag reach is down — rotate in some trending tags relevant to your niche`,
+      `Hashtags driving stronger discovery than previous period`,
+      `Hashtag reach declining — rotate in trending tags relevant to your niche`,
     ],
     subscriber_growth: [
-      `Subscriber momentum is strong — your content is converting viewers`,
-      `Sub growth slowed — pinned comments and end screens can help convert viewers`,
+      `Subscriber momentum strong — content is converting viewers to followers`,
+      `Sub growth slowing — pinned comments and end screens can improve conversion`,
     ],
     watch_time: [
-      `Watch time is climbing — the algorithm rewards this heavily`,
-      `Watch time dropped — shorter, punchier intros can help retain viewers`,
+      `Watch time increasing — a key ranking signal across platforms`,
+      `Watch time declining — shorter intros and tighter editing can help recover`,
     ],
     click_through_rate: [
-      `Your thumbnails are earning more clicks — keep testing bold visuals`,
-      `CTR dipped — try A/B testing your thumbnail style`,
+      `CTR up — thumbnails and titles are earning clicks`,
+      `CTR dipped — A/B test thumbnail styles against your top performers`,
     ],
     conversion_rate: [
-      `Conversions up ${abs}% — your content-to-purchase funnel is working`,
-      `Conversion rate dropped — review your product placement and CTAs`,
+      `Conversions up ${abs}% — purchase funnel is working`,
+      `Conversion rate down — audit product placement and CTA clarity`,
     ],
     revenue_per_video: [
-      `Revenue per video is up — you're earning more from each piece of content`,
-      `Revenue per video dipped — focus on products with higher margins`,
+      `Revenue per video increasing — higher yield per piece of content`,
+      `Revenue per video declined — prioritize higher-margin products in features`,
     ],
     shop_clicks: [
-      `More viewers are tapping through to shop — your product hooks are landing`,
-      `Shop clicks down — try showcasing products in the first few seconds`,
+      `Shop clicks increasing — product hooks are landing`,
+      `Shop clicks down — showcase products earlier in the content`,
     ],
   };
 
@@ -101,36 +101,36 @@ export function getAIOneLiner(metric: MetricDefinition, trend: number): string {
 
   const categoryFallbacks: Record<string, [string, string]> = {
     engagement: [
-      `This engagement metric is trending up ${abs}% — your content strategy is working`,
-      `Down ${abs}% — test different content types to re-engage your audience`,
+      `Engagement up ${abs}% — current content strategy is delivering`,
+      `Down ${abs}% — test different formats to identify what re-engages your audience`,
     ],
     reach: [
-      `Visibility up ${abs}% — more people are discovering your content`,
-      `Reach dipped ${abs}% — experiment with posting times and formats`,
+      `Visibility up ${abs}% — content reaching new segments`,
+      `Reach dipped ${abs}% — experiment with posting times and content formats`,
     ],
     audience: [
-      `Your audience metrics are improving — you're attracting the right people`,
-      `Audience metric declined — review if your content matches your target demographic`,
+      `Audience metrics improving — attracting aligned followers`,
+      `Audience metric declined — verify content aligns with target demographic`,
     ],
     content: [
-      `Content performance trending up — double down on what's working`,
-      `Content metric dipped — analyze your top posts from last month for patterns`,
+      `Content performance trending up — double down on the formats that are working`,
+      `Content metric dipped — analyze top-performing posts for repeatable patterns`,
     ],
     growth: [
-      `Growth is accelerating — your audience is expanding faster`,
-      `Growth slowed this period — collaborations can help reignite momentum`,
+      `Growth accelerating — audience expanding at an above-average rate`,
+      `Growth slowed — strategic collaborations can re-ignite momentum`,
     ],
     revenue: [
-      `Revenue metric up ${abs}% — your monetization strategy is paying off`,
-      `Revenue dipped — revisit your pricing or promotional content`,
+      `Revenue up ${abs}% — monetization approach is yielding results`,
+      `Revenue dipped — revisit pricing strategy or promotional content mix`,
     ],
     competitive: [
-      `You're gaining ground against competitors in your niche`,
-      `Competitors may be outpacing you — review their recent content strategy`,
+      `Gaining ground relative to niche peers`,
+      `Competitors may be outpacing — review their recent content approach`,
     ],
     sentiment: [
-      `Audience sentiment is trending positive — your community loves your content`,
-      `Sentiment shifted — check recent comments for feedback to address`,
+      `Audience sentiment trending positive — community health is strong`,
+      `Sentiment shifted — review recent comments for recurring concerns`,
     ],
   };
 
@@ -138,6 +138,6 @@ export function getAIOneLiner(metric: MetricDefinition, trend: number): string {
   if (catPair) return up ? catPair[0] : catPair[1];
 
   return up
-    ? `Up ${abs}% this period — keep the momentum going`
-    : `Down ${abs}% — worth investigating what changed`;
+    ? `Up ${abs}% this period — maintain current approach`
+    : `Down ${abs}% — investigate what shifted`;
 }

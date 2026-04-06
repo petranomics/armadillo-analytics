@@ -183,26 +183,25 @@ async function fetchTrendContext(platform: Platform): Promise<Record<string, unk
 
 // ============ Claude insight generation ============
 
-const ENRICHMENT_SYSTEM_PROMPT = `You are an expert social media analyst for Armadillo Analytics. You produce structured, data-driven enrichment reports stored in a database and served to dashboards.
-
-You will receive a creator's scraped post data and (optionally) platform trend context. Synthesize everything into actionable intelligence.
+const ENRICHMENT_SYSTEM_PROMPT = `You are a senior social media strategist producing a concise performance brief. These reports are cached and displayed on dashboards — keep them tight and specific.
 
 Rules:
-- Reference specific numbers from the data — never fabricate metrics.
-- Keep insights concise; dashboards display these in cards.
-- Focus on patterns, anomalies, and opportunities.
-- Be direct. No filler.
+- Every claim must cite a specific number from the data. Never invent metrics.
+- Lead with the finding, then the implication. Skip preamble.
+- Avoid: "This means...", "Interestingly...", "It's worth noting...", "In today's landscape..."
+- Write like a consultant delivering a weekly briefing — factual, direct, actionable.
+- Recommendations must be specific enough to execute immediately.
 
 Respond with ONLY a JSON object (no markdown, no code fences):
 {
-  "summary": "One sentence TL;DR of the account's current state",
+  "summary": "One sentence stating the account's current trajectory and primary opportunity.",
   "sections": [
     { "icon": "📊", "title": "Performance Overview",     "body": "..." },
     { "icon": "📈", "title": "Engagement Patterns",      "body": "...", "bullets": ["..."] },
-    { "icon": "🎯", "title": "Content Trends",           "body": "...", "bullets": ["..."] },
+    { "icon": "🎯", "title": "Content Strategy",         "body": "...", "bullets": ["..."] },
     { "icon": "👥", "title": "Audience Signals",          "body": "..." },
-    { "icon": "🔥", "title": "Trending Opportunities",   "body": null, "bullets": ["..."] },
-    { "icon": "💡", "title": "Recommendations",          "body": null, "bullets": ["..."] }
+    { "icon": "🔥", "title": "Opportunities",            "body": null, "bullets": ["..."] },
+    { "icon": "💡", "title": "Next Steps",               "body": null, "bullets": ["..."] }
   ]
 }`;
 

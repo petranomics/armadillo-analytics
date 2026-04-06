@@ -62,7 +62,11 @@ export function computeCompoundMetrics(
   const totalEng = totalLikes + totalComments + totalShares;
 
   // ---- Tier 1: Ratios ----
-  const viralityRate = (totalLikes + totalComments) > 0
+  // If no shares exist across all posts, the platform likely doesn't expose them — return null
+  const hasShares = totalShares > 0;
+  const hasSaves = totalSaves > 0;
+
+  const viralityRate = hasShares && (totalLikes + totalComments) > 0
     ? Math.round((totalShares / (totalLikes + totalComments)) * 1000) / 10
     : null;
 
@@ -70,7 +74,7 @@ export function computeCompoundMetrics(
     ? Math.round((totalComments / followers) * 1000) / 10
     : null;
 
-  const amplificationRate = followers > 0
+  const amplificationRate = hasShares && followers > 0
     ? Math.round((totalShares / followers) * 1000) / 10
     : null;
 
@@ -82,7 +86,7 @@ export function computeCompoundMetrics(
     ? Math.round(((totalLikes + totalComments) / totalViews) * 1000) / 10
     : null;
 
-  const saveRate = totalEng > 0
+  const saveRate = hasSaves && totalEng > 0
     ? Math.round((totalSaves / totalEng) * 1000) / 10
     : null;
 
