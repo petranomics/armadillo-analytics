@@ -4,8 +4,9 @@ import { enrichAllAccounts } from '@/lib/db/enrichment';
 /**
  * GET /api/cron/enrich
  *
- * Scheduled endpoint — call every 12 hours via Vercel Cron.
+ * Scheduled endpoint — runs daily at 3:00 AM UTC via Vercel Cron.
  * Enriches all active platform connections in batches.
+ * Model and interval configurable via env vars (CLAUDE_MODEL, etc.)
  *
  * Protected by CRON_SECRET to prevent unauthorized invocation.
  */
@@ -19,9 +20,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('[cron/enrich] Starting scheduled enrichment...');
+    const startTime = Date.now();
+    console.log(`[cron/enrich] Starting scheduled enrichment at ${new Date().toISOString()} (trigger: scheduled)`);
     const results = await enrichAllAccounts();
-    console.log(`[cron/enrich] Complete: ${results.succeeded}/${results.total} succeeded, ${results.failed} failed`);
+    const durationMs = Date.now() - startTime;
+    console.log(`[cron/enrich] Complete: ${results.succeeded}/${results.total} succeeded, ${results.failed} failed (${durationMs}ms)`);
 
     return NextResponse.json({
       ok: true,

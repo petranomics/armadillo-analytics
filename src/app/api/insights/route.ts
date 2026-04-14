@@ -153,8 +153,8 @@ Now generate the analytics report. Respond ONLY with the JSON object, no other t
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 2048,
+        model: process.env.CLAUDE_MODEL ?? 'claude-haiku-4-5-20251001',
+        max_tokens: Number(process.env.CLAUDE_MAX_TOKENS ?? '2048'),
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
       }),

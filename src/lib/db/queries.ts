@@ -8,7 +8,7 @@ import type {
 } from './types';
 import type { Platform, Post, PlatformProfile } from '../types';
 
-const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
+const COOLDOWN_MS = Number(process.env.REFRESH_COOLDOWN_MS ?? String(5 * 60 * 1000)); // 5 minutes (configurable)
 
 // Neon's tagged-template returns Record<string, unknown>[] — cast through unknown.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

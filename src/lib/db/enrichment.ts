@@ -14,11 +14,14 @@ import {
 } from './queries';
 
 // ============ Configuration ============
+// All configurable via environment variables for easy tuning.
+// At 1 call/day with Haiku, estimated monthly cost: < $1.
+// Sonnet: ~$0.15/call. Haiku: ~$0.01/call. Opus: ~$0.75/call.
 
-const MODEL = 'claude-sonnet-4-5-20250929';
-const MAX_TOKENS = 2048;
-const BATCH_SIZE = 3;              // accounts per batch to avoid rate limits
-const BATCH_DELAY_MS = 2_000;      // pause between batches
+const MODEL = process.env.CLAUDE_MODEL ?? 'claude-haiku-4-5-20251001';
+const MAX_TOKENS = Number(process.env.CLAUDE_MAX_TOKENS ?? '2048');
+const BATCH_SIZE = Number(process.env.ENRICHMENT_BATCH_SIZE ?? '3');
+const BATCH_DELAY_MS = Number(process.env.ENRICHMENT_BATCH_DELAY_MS ?? '2000');
 
 // ============ Platform-specific post normalization ============
 
@@ -266,7 +269,11 @@ export async function generateInsights(
   const json = textBlock.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
   const parsed = JSON.parse(json);
 
-  const tokensUsed = (message.usage?.input_tokens ?? 0) + (message.usage?.output_tokens ?? 0);
+  const inputTokens = message.usage?.input_tokens ?? 0;
+  const outputTokens = message.usage?.output_tokens ?? 0;
+  const tokensUsed = inputTokens + outputTokens;
+
+  console.log(`[enrichment] API call: model=${MODEL}, input=${inputTokens}, output=${outputTokens}, total=${tokensUsed}`);
 
   return {
     sections: parsed.sections as InsightSection[],
