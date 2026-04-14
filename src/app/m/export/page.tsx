@@ -1,41 +1,60 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
-import { mockHashtagStats, mockHashtagPosts, mockRedditTrends, mockTikTokTrends } from '@/lib/trend-data';
 import BottomNav from '@/components/mobile/BottomNav';
-import { FileText, Link2, Mail, Download, Image, QrCode, Copy, Check, Share2, Presentation, Lock, TrendingUp } from 'lucide-react';
+import { FileText, Link2, Mail, Download, Image, QrCode, Copy, Check, Share2, Presentation, Lock, TrendingUp, Loader2, AlertCircle } from 'lucide-react';
+import type { TrendData, HashtagStats, HashtagPost, RedditTrend, TikTokTrend } from '@/lib/types';
 
-function generateTrendCSV(): string {
+function generateTrendCSV(
+  hashtagStats: HashtagStats[],
+  hashtagPosts: HashtagPost[],
+  redditTrends: RedditTrend[],
+  tiktokTrends: TikTokTrend[],
+): string | null {
+  const hasAnyData = hashtagStats.length > 0 || hashtagPosts.length > 0 || redditTrends.length > 0 || tiktokTrends.length > 0;
+  if (!hasAnyData) return null;
+
   const lines: string[] = [];
 
   // Hashtag Stats
-  lines.push('--- HASHTAG TRENDS ---');
-  lines.push('Hashtag,Post Count,Avg Engagement %,Trend,Related Hashtags');
-  for (const h of mockHashtagStats) {
-    lines.push(`#${h.hashtag},${h.postCount},${h.avgEngagement || ''},${h.trend || ''},"${h.relatedHashtags.join(', ')}"`);
+  if (hashtagStats.length > 0) {
+    lines.push('--- HASHTAG TRENDS ---');
+    lines.push('Hashtag,Post Count,Avg Engagement %,Trend,Related Hashtags');
+    for (const h of hashtagStats) {
+      lines.push(`#${h.hashtag},${h.postCount},${h.avgEngagement || ''},${h.trend || ''},"${h.relatedHashtags.join(', ')}"`);
+    }
+    lines.push('');
   }
 
-  lines.push('');
-  lines.push('--- TRENDING HASHTAG POSTS ---');
-  lines.push('Hashtag,Caption,Likes,Comments,Published');
-  for (const p of mockHashtagPosts) {
-    lines.push(`#${p.hashtag},"${p.caption.replace(/"/g, '""')}",${p.likes},${p.comments},${p.publishedAt}`);
+  // Trending Hashtag Posts
+  if (hashtagPosts.length > 0) {
+    lines.push('--- TRENDING HASHTAG POSTS ---');
+    lines.push('Hashtag,Caption,Likes,Comments,Published');
+    for (const p of hashtagPosts) {
+      lines.push(`#${p.hashtag},"${p.caption.replace(/"/g, '""')}",${p.likes},${p.comments},${p.publishedAt}`);
+    }
+    lines.push('');
   }
 
-  lines.push('');
-  lines.push('--- REDDIT TRENDS ---');
-  lines.push('Title,Subreddit,Upvotes,Comments,Flair,Published');
-  for (const r of mockRedditTrends) {
-    lines.push(`"${r.title.replace(/"/g, '""')}",${r.subreddit},${r.upvotes},${r.comments},${r.flair || ''},${r.publishedAt}`);
+  // Reddit Trends
+  if (redditTrends.length > 0) {
+    lines.push('--- REDDIT TRENDS ---');
+    lines.push('Title,Subreddit,Upvotes,Comments,Flair,Published');
+    for (const r of redditTrends) {
+      lines.push(`"${r.title.replace(/"/g, '""')}",${r.subreddit},${r.upvotes},${r.comments},${r.flair || ''},${r.publishedAt}`);
+    }
+    lines.push('');
   }
 
-  lines.push('');
-  lines.push('--- TIKTOK TRENDS ---');
-  lines.push('Product,Category,Trend Score,Related Videos,Description');
-  for (const t of mockTikTokTrends) {
-    lines.push(`"${t.productName}",${t.category},${t.trendScore || ''},${t.relatedVideos || ''},"${(t.description || '').replace(/"/g, '""')}"`);
+  // TikTok Trends
+  if (tiktokTrends.length > 0) {
+    lines.push('--- TIKTOK TRENDS ---');
+    lines.push('Product,Category,Trend Score,Related Videos,Description');
+    for (const t of tiktokTrends) {
+      lines.push(`"${t.productName}",${t.category},${t.trendScore || ''},${t.relatedVideos || ''},"${(t.description || '').replace(/"/g, '""')}"`);
+    }
   }
 
   return lines.join('\n');
@@ -58,6 +77,66 @@ export default function ExportPage() {
   const [copied, setCopied] = useState(false);
   const [csvDownloaded, setCsvDownloaded] = useState(false);
 
+  // Trend data state
+  const [hashtagStats, setHashtagStats] = useState<HashtagStats[]>([]);
+  const [hashtagPosts, setHashtagPosts] = useState<HashtagPost[]>([]);
+  const [redditTrends, setRedditTrends] = useState<RedditTrend[]>([]);
+  const [tiktokTrends, setTiktokTrends] = useState<TikTokTrend[]>([]);
+  const [trendLoading, setTrendLoading] = useState(false);
+  const [trendError, setTrendError] = useState<string | null>(null);
+  const [trendsFetched, setTrendsFetched] = useState(false);
+
+  const hasTrendData = hashtagStats.length > 0 || hashtagPosts.length > 0 || redditTrends.length > 0 || tiktokTrends.length > 0;
+
+  // Fetch a single trend source
+  const fetchTrend = useCallback(async (source: string, params: Record<string, unknown>) => {
+    const res = await fetch('/api/trends', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, params }),
+    });
+    const data: TrendData & { error?: string } = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch');
+
+    if (data.hashtagStats) setHashtagStats(prev => [...prev, ...data.hashtagStats!]);
+    if (data.hashtagPosts) setHashtagPosts(prev => [...prev, ...data.hashtagPosts!]);
+    if (data.redditTrends) setRedditTrends(prev => [...prev, ...data.redditTrends!]);
+    if (data.tiktokTrends) setTiktokTrends(prev => [...prev, ...data.tiktokTrends!]);
+  }, []);
+
+  // Fetch all trend data on demand
+  const fetchAllTrends = useCallback(async () => {
+    if (!profile) return;
+    setTrendLoading(true);
+    setTrendError(null);
+    setHashtagStats([]);
+    setHashtagPosts([]);
+    setRedditTrends([]);
+    setTiktokTrends([]);
+
+    try {
+      const fetches: Promise<void>[] = [];
+      const hasIg = profile.selectedPlatforms.includes('instagram');
+      const hasTiktok = profile.selectedPlatforms.includes('tiktok');
+
+      if (hasIg) {
+        fetches.push(fetchTrend('instagramHashtags', { keywords: ['fitness', 'food', 'travel'] }));
+        fetches.push(fetchTrend('instagramHashtagPosts', { hashtags: ['austinfood', 'atxlife'], limit: 20 }));
+      }
+      fetches.push(fetchTrend('redditTrends', { subreddits: ['https://old.reddit.com/r/popular/'], maxPosts: 15 }));
+      if (hasTiktok) {
+        fetches.push(fetchTrend('tiktokTrends', { category: 'General', maxProducts: 8 }));
+      }
+
+      await Promise.allSettled(fetches);
+      setTrendsFetched(true);
+    } catch (err) {
+      setTrendError(err instanceof Error ? err.message : 'Failed to fetch trend data');
+    } finally {
+      setTrendLoading(false);
+    }
+  }, [profile, fetchTrend]);
+
   useEffect(() => {
     const p = getMobileProfile();
     if (!p.onboardingComplete) { router.push('/m/onboarding'); return; }
@@ -77,7 +156,8 @@ export default function ExportPage() {
   };
 
   const handleCSVExport = () => {
-    const csv = generateTrendCSV();
+    const csv = generateTrendCSV(hashtagStats, hashtagPosts, redditTrends, tiktokTrends);
+    if (!csv) return;
     downloadCSV(`armadillo-trends-${new Date().toISOString().slice(0, 10)}.csv`, csv);
     setCsvDownloaded(true);
     setTimeout(() => setCsvDownloaded(false), 3000);
@@ -125,15 +205,17 @@ export default function ExportPage() {
             { icon: FileText, label: 'PDF Media Kit', desc: 'Professional branded PDF with metrics, audience data, and trend insights', available: !isFree, action: undefined },
             { icon: Presentation, label: 'Pitch Deck', desc: 'Slide-ready presentation for brand meetings and sponsorship pitches', available: isPro, action: undefined },
             { icon: Image, label: 'Social Cards', desc: 'Instagram-ready graphics showing your analytics for Stories and posts', available: !isFree, action: undefined },
-            { icon: Download, label: 'CSV Data Export', desc: 'Raw data download including trend data for spreadsheets and custom analysis', available: isPro, action: isPro ? handleCSVExport : undefined },
+            { icon: Download, label: 'CSV Data Export', desc: 'Raw data download including trend data for spreadsheets and custom analysis', available: isPro, action: isPro && hasTrendData ? handleCSVExport : undefined, needsData: isPro && !hasTrendData },
           ].map((option) => {
             const Icon = option.icon;
+            const isDisabledByData = 'needsData' in option && option.needsData;
             return (
               <button
                 key={option.label}
                 onClick={option.action}
+                disabled={isDisabledByData}
                 className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border text-left transition-all ${
-                  option.available
+                  option.available && !isDisabledByData
                     ? 'bg-armadillo-card border-armadillo-border hover:border-burnt/40'
                     : 'bg-armadillo-card border-armadillo-border opacity-50'
                 }`}
@@ -152,6 +234,9 @@ export default function ExportPage() {
                     )}
                   </div>
                   <div className="text-[10px] text-armadillo-muted mt-0.5">{option.desc}</div>
+                  {isDisabledByData && (
+                    <div className="text-[10px] text-burnt mt-1">Fetch your analytics first</div>
+                  )}
                 </div>
               </button>
             );
@@ -162,29 +247,54 @@ export default function ExportPage() {
       {/* Trend Data in Export */}
       {!isFree && (
         <div className="px-5 mb-5">
-          <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">Trend Data Included</h3>
+          <h3 className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase mb-2.5">Trend Data for Export</h3>
           <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp size={14} className="text-burnt" />
-              <span className="text-xs font-medium text-armadillo-text">Exports now include trend data</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={14} className="text-burnt" />
+                <span className="text-xs font-medium text-armadillo-text">
+                  {hasTrendData ? 'Trend data ready for export' : 'No trend data loaded'}
+                </span>
+              </div>
+              <button
+                onClick={fetchAllTrends}
+                disabled={trendLoading}
+                className="flex items-center gap-1.5 bg-burnt hover:bg-burnt-light disabled:opacity-60 text-white px-3 py-1.5 rounded-lg text-[10px] font-medium transition-colors shrink-0"
+              >
+                {trendLoading ? <Loader2 size={10} className="animate-spin" /> : <TrendingUp size={10} />}
+                {trendLoading ? 'Fetching...' : trendsFetched ? 'Refresh' : 'Fetch Trends'}
+              </button>
             </div>
+            {trendError && (
+              <div className="flex items-center gap-1.5 text-[10px] text-danger mb-2">
+                <AlertCircle size={10} /> {trendError}
+              </div>
+            )}
             <div className="space-y-1.5">
               {[
-                { label: 'Instagram hashtag stats & trending posts', available: true },
-                { label: 'Reddit trending topics', available: isPro },
-                { label: 'TikTok product trends & scores', available: isPro },
+                { label: 'Instagram hashtag stats & trending posts', available: true, hasData: hashtagStats.length > 0 || hashtagPosts.length > 0 },
+                { label: 'Reddit trending topics', available: isPro, hasData: redditTrends.length > 0 },
+                { label: 'TikTok product trends & scores', available: isPro, hasData: tiktokTrends.length > 0 },
               ].map(item => (
                 <div key={item.label} className="flex items-center gap-2 text-[11px]">
-                  {item.available ? (
+                  {!item.available ? (
+                    <Lock size={10} className="text-armadillo-muted shrink-0" />
+                  ) : item.hasData ? (
                     <Check size={10} className="text-success shrink-0" />
                   ) : (
-                    <Lock size={10} className="text-armadillo-muted shrink-0" />
+                    <AlertCircle size={10} className="text-armadillo-muted shrink-0" />
                   )}
                   <span className={item.available ? 'text-armadillo-text' : 'text-armadillo-muted'}>{item.label}</span>
                   {!item.available && <span className="text-[8px] bg-armadillo-border text-armadillo-muted px-1.5 py-0.5 rounded-full uppercase font-bold">Pro</span>}
+                  {item.available && item.hasData && <span className="text-[8px] bg-success/20 text-success px-1.5 py-0.5 rounded-full">Loaded</span>}
                 </div>
               ))}
             </div>
+            {!hasTrendData && !trendLoading && (
+              <p className="text-[10px] text-armadillo-muted mt-2">
+                Tap &ldquo;Fetch Trends&rdquo; to load live data, then export as CSV.
+              </p>
+            )}
           </div>
         </div>
       )}

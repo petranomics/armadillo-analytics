@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { href: '/m/insights', icon: BarChart3, label: 'Insights' },
   { href: '/m/customize', icon: Sparkles, label: 'Metrics' },
   { href: '/m/export', icon: Share2, label: 'Export' },
-  { href: '/m/dashboard?settings=true', icon: Settings, label: 'Settings' },
+  { href: '/m/settings', icon: Settings, label: 'Settings' },
 ];
 
 export default function BottomNav() {

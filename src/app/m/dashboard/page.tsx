@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
 import { USER_TYPES, ALL_METRICS, type MetricDefinition, type MetricCategory, CATEGORY_LABELS } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
-import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, AlertCircle, Loader2 } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import type { Post } from '@/lib/types';
+import type { Post, Platform } from '@/lib/types';
 import { getAIOneLiner } from '@/lib/ai-insights';
+import { persistImagesClientSide } from '@/lib/image-cache';
 
 const EngagementBreakdown = dynamic(() => import('@/components/mobile/charts/EngagementBreakdown'), { ssr: false });
 const EngagementTrend = dynamic(() => import('@/components/mobile/charts/EngagementTrend'), { ssr: false });
@@ -41,6 +42,51 @@ interface ExportData {
     postingFreq: string;
     avgEngagementRate: number;
   };
+}
+
+function transformMetrics(platform: Platform, item: Record<string, unknown>) {
+  switch (platform) {
+    case 'tiktok':
+      return {
+        views: Number(item.playCount || item.views || item.videoPlayCount || 0),
+        likes: Number(item.diggCount || item.likes || item.heartCount || 0),
+        comments: Number(item.commentCount || item.comments || 0),
+        shares: Number(item.shareCount || item.shares || 0),
+        saves: Number(item.collectCount || item.bookmarks || 0),
+      };
+    case 'instagram':
+      return {
+        views: Number(item.videoViewCount || item.videoPlayCount || item.viewCount || 0),
+        likes: Number(item.likesCount || item.likes || 0),
+        comments: Number(item.commentsCount || item.comments || 0),
+        shares: Number(item.sharesCount || item.shares || 0),
+        saves: Number(item.savesCount || item.saves || 0),
+      };
+    case 'youtube':
+      return {
+        views: Number(item.viewCount || item.views || 0),
+        likes: Number(item.likes || item.likeCount || 0),
+        comments: Number(item.commentCount || item.comments || item.numberOfComments || 0),
+        shares: 0,
+      };
+    case 'twitter':
+      return {
+        views: Number(item.viewCount || item.views || 0),
+        likes: Number(item.likeCount || item.likes || item.favoriteCount || 0),
+        comments: Number(item.replyCount || item.replies || 0),
+        shares: Number(item.retweetCount || item.retweets || 0),
+        retweets: Number(item.retweetCount || item.retweets || 0),
+        quotes: Number(item.quoteCount || item.quotes || 0),
+      };
+    case 'linkedin':
+      return {
+        likes: Number(item.likeCount || item.likes || item.numLikes || 0),
+        comments: Number(item.commentCount || item.comments || item.numComments || 0),
+        shares: Number(item.shareCount || item.shares || item.numShares || 0),
+      };
+    default:
+      return { likes: 0, comments: 0 };
+  }
 }
 
 function loadPlatformData(platforms: string[]): { metrics: LiveMetrics | null; allPosts: Post[] } {
@@ -112,6 +158,175 @@ export default function MobileDashboard() {
   const [liveMetrics, setLiveMetrics] = useState<LiveMetrics | null>(null);
   const [allPosts, setAllPosts] = useState<Post[]>([]);
   const [isLive, setIsLive] = useState(false);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const blobUploadedRef = useRef(false);
+  // Track the latest scraped platform + posts for image persistence
+  const [lastScrape, setLastScrape] = useState<{ platform: Platform; posts: Post[]; profile: Record<string, unknown> } | null>(null);
+
+  const handleRefresh = useCallback(async () => {
+    if (!profile || scraping) return;
+    // Use the first selected platform that has a username
+    const platform = profile.selectedPlatforms.find(p => profile.platformUsernames[p]) as Platform | undefined;
+    if (!platform) {
+      setScrapeError('No platform username configured. Go to Settings to add one.');
+      return;
+    }
+    const username = profile.platformUsernames[platform]!;
+
+    setScraping(true);
+    setScrapeError(null);
+    blobUploadedRef.current = false;
+
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, username }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to fetch data');
+
+      const rawPosts: Post[] = (json.results || []).slice(0, 25).map((item: Record<string, unknown>, i: number) => {
+        const metrics = transformMetrics(platform, item);
+        const totalEng = metrics.likes + metrics.comments + (metrics.shares || 0);
+        const followers = Number(item.followersCount || item.subscribersCount || item.followers || 1);
+        return {
+          id: `${platform}-live-${i}`,
+          platform,
+          url: String(item.url || item.postUrl || item.webVideoUrl || item.link || '#'),
+          caption: String(item.caption || item.text || item.title || item.description || item.fullText || ''),
+          thumbnailUrl: String(item.displayUrl || item.thumbnailUrl || ''),
+          contentType: String(item.type || item.productType || 'Image'),
+          hashtags: Array.isArray(item.hashtags) ? (item.hashtags as string[]) : [],
+          mentions: Array.isArray(item.mentions) ? (item.mentions as string[]) : [],
+          publishedAt: String(item.timestamp || item.createTime || item.publishedAt || item.date || item.createdAt || new Date().toISOString()),
+          metrics,
+          engagementRate: followers > 0 ? parseFloat(((totalEng / followers) * 100).toFixed(1)) : 0,
+        };
+      });
+
+      const totalLikes = rawPosts.reduce((s, p) => s + p.metrics.likes, 0);
+      const totalComments = rawPosts.reduce((s, p) => s + p.metrics.comments, 0);
+      const totalShares = rawPosts.reduce((s, p) => s + (p.metrics.shares || 0), 0);
+      const totalViews = rawPosts.reduce((s, p) => s + (p.metrics.views || 0), 0);
+
+      const first = json.results?.[0] || {};
+      const liveProfile = {
+        platform,
+        username,
+        displayName: String(first.ownerFullName || first.authorName || first.channelName || first.name || first.authorDisplayName || username || ''),
+        followers: Number(first.followersCount || first.subscribersCount || first.followers || first.userFollowersCount || 0),
+        following: Number(first.followingCount || first.following || 0),
+        totalPosts: Number(first.profilePostsCount || first.postsCount || first.videoCount || rawPosts.length),
+        bio: String(first.biography || first.bio || first.description || ''),
+        verified: Boolean(first.verified || first.isVerified),
+        avatarUrlHD: String(first.profilePicUrlHD || '') || undefined,
+        externalUrl: String(first.externalUrl || '') || undefined,
+      };
+
+      // Compute export payload
+      const avgVPP = rawPosts.length > 0 && totalViews > 0 ? Math.round(totalViews / rawPosts.length) : 0;
+      const pDates = rawPosts.map(p => new Date(p.publishedAt).getTime()).filter(t => !isNaN(t)).sort((a, b) => a - b);
+      let pFreq = '';
+      if (pDates.length >= 2) {
+        const rangeDays = (pDates[pDates.length - 1] - pDates[0]) / (1000 * 60 * 60 * 24);
+        if (rangeDays > 0) {
+          const perWeek = (rawPosts.length / rangeDays) * 7;
+          pFreq = `~${perWeek.toFixed(1)}/week`;
+        }
+      }
+
+      const avgEngRate = rawPosts.length > 0
+        ? parseFloat((rawPosts.reduce((s, p) => s + p.engagementRate, 0) / rawPosts.length).toFixed(1))
+        : 0;
+
+      const exportPayload = {
+        profile: liveProfile,
+        posts: rawPosts,
+        summary: {
+          totalEngagement: totalLikes + totalComments + totalShares,
+          avgEngagementRate: avgEngRate,
+          topPost: [...rawPosts].sort((a, b) =>
+            (b.metrics.likes + b.metrics.comments) - (a.metrics.likes + a.metrics.comments)
+          )[0] || rawPosts[0],
+        },
+        computedMetrics: {
+          totalLikes,
+          totalComments,
+          totalShares,
+          totalViews,
+          avgViewsPerPost: avgVPP,
+          postingFreq: pFreq,
+          avgEngagementRate: avgEngRate,
+        },
+        exportedAt: new Date().toISOString(),
+      };
+
+      // Persist to localStorage
+      localStorage.setItem('armadillo-export-data', JSON.stringify(exportPayload));
+      localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(exportPayload));
+
+      // Refresh dashboard metrics from localStorage
+      const { metrics, allPosts: posts } = loadPlatformData(profile.selectedPlatforms);
+      if (metrics) {
+        setLiveMetrics(metrics);
+        setAllPosts(posts);
+        setIsLive(true);
+      }
+
+      // Trigger image persistence
+      setLastScrape({ platform, posts: rawPosts, profile: liveProfile as unknown as Record<string, unknown> });
+    } catch (err) {
+      setScrapeError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setScraping(false);
+    }
+  }, [profile, scraping]);
+
+  // Persist images to Vercel Blob after a successful scrape
+  useEffect(() => {
+    if (!lastScrape || blobUploadedRef.current) return;
+    const { platform, posts: scrapedPosts, profile: scrapedProfile } = lastScrape;
+
+    const hasExpirableUrls = scrapedPosts.some(p => p.thumbnailUrl && !p.thumbnailUrl.includes('.vercel-storage.com') && !p.thumbnailUrl.startsWith('data:'));
+    if (!hasExpirableUrls) return;
+    blobUploadedRef.current = true;
+
+    const avatarUrl = scrapedProfile.avatarUrlHD as string | undefined;
+    const imageUrls = [
+      avatarUrl,
+      ...scrapedPosts.map(p => p.thumbnailUrl).filter(Boolean),
+    ].filter(u => u && !u.includes('.vercel-storage.com') && !u.startsWith('data:')) as string[];
+
+    if (imageUrls.length === 0) return;
+
+    console.log(`[Blob] Mobile: Converting ${imageUrls.length} images client-side...`);
+    persistImagesClientSide(imageUrls).then(mapping => {
+      const uploaded = Object.values(mapping).filter(v => v.includes('.vercel-storage.com')).length;
+      console.log(`[Blob] Mobile: Done: ${uploaded}/${imageUrls.length} uploaded`);
+      if (uploaded === 0) return;
+
+      // Update localStorage with permanent URLs
+      try {
+        const rawExport = localStorage.getItem(`armadillo-export-data-${platform}`);
+        if (rawExport) {
+          const updated = JSON.parse(rawExport);
+          if (updated.profile?.avatarUrlHD && mapping[updated.profile.avatarUrlHD]) {
+            updated.profile.avatarUrlHD = mapping[updated.profile.avatarUrlHD];
+          }
+          if (updated.posts) {
+            updated.posts = updated.posts.map((p: Record<string, unknown>) => ({
+              ...p,
+              thumbnailUrl: (p.thumbnailUrl && mapping[p.thumbnailUrl as string]) || p.thumbnailUrl,
+            }));
+          }
+          localStorage.setItem('armadillo-export-data', JSON.stringify(updated));
+          localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(updated));
+        }
+      } catch { /* ignore */ }
+    }).catch(err => { console.error('[Blob] Mobile upload failed:', err); });
+  }, [lastScrape]);
 
   useEffect(() => {
     const p = getMobileProfile();
@@ -233,11 +448,26 @@ export default function MobileDashboard() {
           <button className="w-9 h-9 rounded-full bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted">
             <Bell size={16} />
           </button>
-          <button className="w-9 h-9 rounded-full bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted">
-            <RefreshCw size={16} />
+          <button
+            onClick={handleRefresh}
+            disabled={scraping}
+            className="w-9 h-9 rounded-full bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted disabled:opacity-50"
+          >
+            {scraping ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
           </button>
         </div>
       </div>
+
+      {/* Scrape error message */}
+      {scrapeError && (
+        <div className="px-5 mb-3">
+          <div className="bg-danger/10 border border-danger/30 rounded-lg px-4 py-2.5 flex items-center gap-2">
+            <AlertCircle size={14} className="text-danger shrink-0" />
+            <span className="text-xs text-danger">{scrapeError}</span>
+            <button onClick={() => setScrapeError(null)} className="ml-auto text-danger/60 text-xs font-medium">Dismiss</button>
+          </div>
+        </div>
+      )}
 
       {/* Platform Badges */}
       <div className="px-5 mb-4">
