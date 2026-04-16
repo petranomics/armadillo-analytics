@@ -252,15 +252,53 @@ export async function generateInsights(
   posts: Post[],
   trends: Record<string, unknown>,
 ): Promise<{ sections: InsightSection[]; summary: string; tokensUsed: number }> {
+  const prompt = buildUserPrompt(profile, posts, trends);
+
+  // Try VPS local LLM first ($0 per call)
+  const vpsUrl = process.env.VPS_API_URL;
+  const vpsSecret = process.env.VPS_API_SECRET;
+
+  if (vpsUrl && vpsSecret) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+
+      const vpsResp = await fetch(vpsUrl + '/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': vpsSecret },
+        body: JSON.stringify({
+          prompt: ENRICHMENT_SYSTEM_PROMPT + '\n\n' + prompt,
+          model: 'mistral',
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (vpsResp.ok) {
+        const vpsData = await vpsResp.json() as { response?: string; text?: string };
+        const vpsText = vpsData.response || vpsData.text || '';
+        if (vpsText) {
+          const json = vpsText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+          const parsed = JSON.parse(json);
+          console.log(`[enrichment] VPS call: model=mistral, source=vps, tokens=0 (local)`);
+          return { sections: parsed.sections as InsightSection[], summary: parsed.summary ?? null, tokensUsed: 0 };
+        }
+      }
+    } catch (vpsErr) {
+      console.log(`[enrichment] VPS unavailable, falling back to Anthropic: ${vpsErr instanceof Error ? vpsErr.message : 'unknown'}`);
+    }
+  }
+
+  // Fallback to Anthropic API
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
+  if (!apiKey) throw new Error('No AI backend available (VPS down, ANTHROPIC_API_KEY not set)');
 
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: ENRICHMENT_SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: buildUserPrompt(profile, posts, trends) }],
+    messages: [{ role: 'user', content: prompt }],
   });
 
   const textBlock = message.content.find(b => b.type === 'text');
@@ -273,7 +311,7 @@ export async function generateInsights(
   const outputTokens = message.usage?.output_tokens ?? 0;
   const tokensUsed = inputTokens + outputTokens;
 
-  console.log(`[enrichment] API call: model=${MODEL}, input=${inputTokens}, output=${outputTokens}, total=${tokensUsed}`);
+  console.log(`[enrichment] Anthropic call: model=${MODEL}, input=${inputTokens}, output=${outputTokens}, total=${tokensUsed}`);
 
   return {
     sections: parsed.sections as InsightSection[],
