@@ -3,20 +3,65 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
-import { PLATFORM_NAMES } from '@/lib/constants';
+import { getMediaKit } from '@/lib/media-kit';
+import { PLATFORM_NAMES, PLATFORM_COLORS } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
-import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, ArrowUpRight, Sparkles, Lock, ChevronDown, ChevronUp, Loader2, RefreshCw, Hash, ExternalLink } from 'lucide-react';
-import type { TrendData, HashtagStats, HashtagPost, RedditTrend, TikTokTrend } from '@/lib/types';
+import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, ArrowUpRight, Sparkles, Lock, ChevronDown, ChevronUp, Loader2, RefreshCw, Hash, ExternalLink, ArrowDownUp, Calendar, Image as ImageIcon } from 'lucide-react';
+import type { Platform, Post, TrendData, HashtagStats, HashtagPost, RedditTrend, TikTokTrend } from '@/lib/types';
 
-interface PostData {
-  id: number;
-  caption: string;
-  likes: number;
-  comments: number;
-  shares: number;
-  views: number;
-  engagement: number;
-  daysAgo: number;
+type PostSortKey = 'date' | 'likes' | 'engagement';
+
+interface ExportData {
+  profile: { followers: number; platform?: string; [key: string]: unknown };
+  posts: Post[];
+  computedMetrics: {
+    totalLikes: number;
+    totalComments: number;
+    totalShares: number;
+    totalViews: number;
+    avgViewsPerPost: number;
+    postingFreq: string;
+    avgEngagementRate: number;
+  };
+}
+
+function loadPostsFromStorage(platforms: Platform[]): Post[] {
+  const allPosts: Post[] = [];
+
+  for (const platform of platforms) {
+    try {
+      const raw = localStorage.getItem(`armadillo-export-data-${platform}`);
+      if (!raw) continue;
+      const data = JSON.parse(raw) as ExportData;
+      if (data.posts && Array.isArray(data.posts)) {
+        allPosts.push(...data.posts);
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
+  // Fallback to the generic key if no platform-specific data found
+  if (allPosts.length === 0) {
+    try {
+      const raw = localStorage.getItem('armadillo-export-data');
+      if (raw) {
+        const data = JSON.parse(raw) as ExportData;
+        if (data.posts && Array.isArray(data.posts)) {
+          allPosts.push(...data.posts);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  return allPosts;
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'Unknown';
+  const mon = d.toLocaleDateString('en-US', { month: 'short' });
+  const day = d.getDate();
+  const yr = d.getFullYear().toString().slice(2);
+  return `${mon} ${day}, '${yr}`;
 }
 
 function formatNumber(n: number): string {
@@ -51,7 +96,8 @@ export default function InsightsPage() {
   const [trendsFetched, setTrendsFetched] = useState(false);
 
   // Posts loaded from localStorage export data
-  const [posts, setPosts] = useState<PostData[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [postSort, setPostSort] = useState<PostSortKey>('date');
 
   // AI analysis state
   const [aiAnalysis, setAiAnalysis] = useState<{ generatedAt: string; sections: { icon: string; title: string; body?: string | null; bullets?: string[] }[] } | null>(null);
@@ -64,34 +110,9 @@ export default function InsightsPage() {
     setProfile(p);
     setLoaded(true);
 
-    // Load posts from localStorage export data
-    try {
-      const raw = localStorage.getItem('armadillo-export-data');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const results = Array.isArray(parsed) ? parsed : parsed.results || [];
-        const mapped: PostData[] = results.slice(0, 12).map((item: Record<string, unknown>, i: number) => {
-          const likes = Number(item.likesCount || item.likes || item.diggCount || 0);
-          const comments = Number(item.commentsCount || item.comments || item.commentCount || 0);
-          const shares = Number(item.sharesCount || item.shares || item.shareCount || 0);
-          const views = Number(item.videoViewCount || item.viewCount || item.playCount || item.views || 0);
-          const total = likes + comments + shares;
-          const followers = Number(item.followersCount || item.subscribersCount || 1);
-          const ts = item.timestamp || item.createTime || item.publishedAt;
-          const daysAgo = ts ? Math.max(1, Math.floor((Date.now() - new Date(String(ts)).getTime()) / 86400000)) : i + 1;
-          return {
-            id: i + 1,
-            caption: String(item.caption || item.text || item.title || item.description || '').slice(0, 120),
-            likes, comments, shares, views,
-            engagement: followers > 0 ? parseFloat(((total / followers) * 100).toFixed(1)) : 0,
-            daysAgo,
-          };
-        });
-        if (mapped.length > 0) setPosts(mapped);
-      }
-    } catch {
-      // No export data available
-    }
+    // Load posts from localStorage export data (platform-specific keys first, generic fallback)
+    const loadedPosts = loadPostsFromStorage(p.selectedPlatforms);
+    if (loadedPosts.length > 0) setPosts(loadedPosts);
   }, [router]);
 
   // Fetch a single trend source — only called on demand
@@ -121,7 +142,7 @@ export default function InsightsPage() {
     }
   }, []);
 
-  // Lazy-load trends when the tab is first activated
+  // Lazy-load trends when the tab is first activated — use personalized keywords
   useEffect(() => {
     if (activeTab === 'trends' && !trendsFetched && profile) {
       setTrendsFetched(true);
@@ -129,16 +150,43 @@ export default function InsightsPage() {
       const hasIg = profile.selectedPlatforms.includes('instagram');
       const hasTiktok = profile.selectedPlatforms.includes('tiktok');
 
+      // Pull personalized topics from media kit and profile
+      const mediaKit = getMediaKit();
+      const contentTopics = mediaKit.contentTopics.length > 0
+        ? mediaKit.contentTopics.map(t => t.replace(/^#/, ''))
+        : [];
+      const niche = profile.tiktokNiche || '';
+
+      // Build keyword list: contentTopics first, then niche as fallback, then generic defaults
+      const hashtagKeywords = contentTopics.length > 0
+        ? contentTopics.slice(0, 5)
+        : niche
+          ? [niche]
+          : ['fitness', 'food', 'travel'];
+
+      // Use user's tracked hashtags for post search, fall back to first few keywords
+      const trackedHashtags = profile.trackedHashtags.length > 0
+        ? profile.trackedHashtags.map(h => h.replace(/^#/, ''))
+        : hashtagKeywords.slice(0, 2);
+
+      // Use user's tracked subreddits, fall back to r/popular
+      const subreddits = profile.trackedSubreddits.length > 0
+        ? profile.trackedSubreddits
+        : ['https://old.reddit.com/r/popular/'];
+
+      // TikTok category from niche or content topics
+      const tiktokCategory = niche || (contentTopics.length > 0 ? contentTopics[0] : 'General');
+
       // Fire relevant fetches in parallel — data only pulled when needed
       if (hasIg) {
-        fetchTrend('instagramHashtags', { keywords: ['fitness', 'food', 'travel'] });
-        fetchTrend('instagramHashtagPosts', { hashtags: ['austinfood', 'atxlife'], limit: 20 });
+        fetchTrend('instagramHashtags', { keywords: hashtagKeywords });
+        fetchTrend('instagramHashtagPosts', { hashtags: trackedHashtags, limit: 20 });
       }
 
-      fetchTrend('redditTrends', { subreddits: ['https://old.reddit.com/r/popular/'], maxPosts: 15 });
+      fetchTrend('redditTrends', { subreddits, maxPosts: 15 });
 
       if (hasTiktok) {
-        fetchTrend('tiktokTrends', { category: 'General', maxProducts: 8 });
+        fetchTrend('tiktokTrends', { category: tiktokCategory, maxProducts: 8 });
       }
     }
   }, [activeTab, trendsFetched, profile, fetchTrend]);
@@ -334,62 +382,148 @@ export default function InsightsPage() {
         </div>
       )}
 
-      {/* Posts Tab */}
-      {activeTab === 'posts' && (
-        <div className="px-5 space-y-3">
-          {posts.length > 0 ? (
-            <>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
-                  <div className="font-display text-lg text-armadillo-text">{posts.length}</div>
-                  <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Posts</div>
-                </div>
-                <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
-                  <div className="font-display text-lg text-armadillo-text">{formatNumber(posts.reduce((s, p) => s + p.likes, 0))}</div>
-                  <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Total Likes</div>
-                </div>
-                <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
-                  <div className="font-display text-lg text-burnt">{(posts.reduce((s, p) => s + p.engagement, 0) / posts.length).toFixed(1)}%</div>
-                  <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Avg Eng.</div>
-                </div>
-              </div>
+      {/* Posts Tab — card-based feed */}
+      {activeTab === 'posts' && (() => {
+        const sortedPosts = [...posts].sort((a, b) => {
+          switch (postSort) {
+            case 'likes':
+              return b.metrics.likes - a.metrics.likes;
+            case 'engagement':
+              return b.engagementRate - a.engagementRate;
+            case 'date':
+            default:
+              return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
+          }
+        });
+        const totalLikes = posts.reduce((s, p) => s + p.metrics.likes, 0);
+        const avgEng = posts.length > 0 ? (posts.reduce((s, p) => s + p.engagementRate, 0) / posts.length).toFixed(1) : '0';
 
-              {posts.map((post, i) => (
-                <div key={post.id} className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-armadillo-border flex items-center justify-center text-[10px] text-armadillo-muted font-bold">
-                        {i + 1}
-                      </div>
-                      <span className="text-[11px] text-armadillo-muted">{post.daysAgo}d ago</span>
-                    </div>
-                    <div className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-                      post.engagement > 13 ? 'bg-success/20 text-success' : post.engagement > 10 ? 'bg-burnt/20 text-burnt' : 'bg-armadillo-border text-armadillo-muted'
-                    }`}>
-                      {post.engagement}% eng.
-                    </div>
+        return (
+          <div className="px-5 space-y-3">
+            {posts.length > 0 ? (
+              <>
+                {/* Summary row */}
+                <div className="grid grid-cols-3 gap-2 mb-1">
+                  <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
+                    <div className="font-display text-lg text-armadillo-text">{posts.length}</div>
+                    <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Posts</div>
                   </div>
-                  <p className="text-sm text-armadillo-text mb-3">{post.caption}</p>
-                  <div className="flex items-center gap-4 text-armadillo-muted">
-                    <span className="flex items-center gap-1 text-[11px]"><Eye size={12} />{formatNumber(post.views)}</span>
-                    <span className="flex items-center gap-1 text-[11px]"><Heart size={12} />{formatNumber(post.likes)}</span>
-                    <span className="flex items-center gap-1 text-[11px]"><MessageCircle size={12} />{formatNumber(post.comments)}</span>
-                    <span className="flex items-center gap-1 text-[11px]"><Share2 size={12} />{formatNumber(post.shares)}</span>
+                  <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
+                    <div className="font-display text-lg text-armadillo-text">{formatNumber(totalLikes)}</div>
+                    <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Total Likes</div>
+                  </div>
+                  <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-3 text-center">
+                    <div className="font-display text-lg text-burnt">{avgEng}%</div>
+                    <div className="text-[9px] text-armadillo-muted uppercase tracking-wider">Avg Eng.</div>
                   </div>
                 </div>
-              ))}
-            </>
-          ) : (
-            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-8 text-center">
-              <Eye size={24} className="text-armadillo-muted/40 mx-auto mb-3" />
-              <p className="text-sm font-medium text-armadillo-text mb-1">No posts yet</p>
-              <p className="text-[11px] text-armadillo-muted">
-                Post data will appear here once your account has been scraped. Go to the Dashboard to scrape your account.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+
+                {/* Sort dropdown */}
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-armadillo-muted uppercase tracking-widest font-semibold">Post Feed</span>
+                  <div className="relative">
+                    <select
+                      value={postSort}
+                      onChange={(e) => setPostSort(e.target.value as PostSortKey)}
+                      className="appearance-none bg-armadillo-card border border-armadillo-border rounded-lg pl-2.5 pr-7 py-1.5 text-[11px] text-armadillo-text cursor-pointer focus:outline-none focus:border-burnt"
+                    >
+                      <option value="date">Newest first</option>
+                      <option value="likes">Most liked</option>
+                      <option value="engagement">Top engagement</option>
+                    </select>
+                    <ArrowDownUp size={10} className="absolute right-2 top-1/2 -translate-y-1/2 text-armadillo-muted pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Post cards */}
+                {sortedPosts.map((post) => {
+                  const platformColor = PLATFORM_COLORS[post.platform] || '#E1306C';
+                  const hasViews = (post.metrics.views ?? 0) > 0;
+                  const hasShares = (post.metrics.shares ?? 0) > 0;
+
+                  return (
+                    <div
+                      key={post.id}
+                      className="bg-armadillo-card border border-armadillo-border rounded-2xl overflow-hidden"
+                      style={{ borderLeftWidth: '3px', borderLeftColor: platformColor }}
+                    >
+                      {/* Thumbnail */}
+                      {post.thumbnailUrl ? (
+                        <img
+                          src={post.thumbnailUrl}
+                          alt=""
+                          className="w-full h-48 object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-32 bg-armadillo-border/30 flex items-center justify-center">
+                          <ImageIcon size={28} className="text-armadillo-muted/30" />
+                        </div>
+                      )}
+
+                      <div className="p-4">
+                        {/* Date + engagement badge row */}
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5 text-armadillo-muted">
+                            <Calendar size={10} />
+                            <span className="text-[11px]">{formatDate(post.publishedAt)}</span>
+                          </div>
+                          <div className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                            post.engagementRate > 10 ? 'bg-success/20 text-success' :
+                            post.engagementRate > 5 ? 'bg-burnt/20 text-burnt' :
+                            'bg-armadillo-border text-armadillo-muted'
+                          }`}>
+                            {post.engagementRate}% eng.
+                          </div>
+                        </div>
+
+                        {/* Caption (2-line clamp) */}
+                        {post.caption && (
+                          <p className="text-sm text-armadillo-text leading-relaxed mb-3 line-clamp-2">
+                            {post.caption}
+                          </p>
+                        )}
+
+                        {/* Metrics row */}
+                        <div className="flex items-center gap-3 text-armadillo-muted flex-wrap">
+                          <span className="flex items-center gap-1 text-[11px]">
+                            <Heart size={12} />
+                            {post.metrics.likes > 0 ? formatNumber(post.metrics.likes) : <span className="text-armadillo-muted/50">n/a</span>}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px]">
+                            <MessageCircle size={12} />
+                            {post.metrics.comments > 0 ? formatNumber(post.metrics.comments) : <span className="text-armadillo-muted/50">n/a</span>}
+                          </span>
+                          {hasViews && (
+                            <span className="flex items-center gap-1 text-[11px]">
+                              <Eye size={12} />
+                              {formatNumber(post.metrics.views!)}
+                            </span>
+                          )}
+                          {hasShares && (
+                            <span className="flex items-center gap-1 text-[11px]">
+                              <Share2 size={12} />
+                              {formatNumber(post.metrics.shares!)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            ) : (
+              <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-8 text-center">
+                <ImageIcon size={24} className="text-armadillo-muted/40 mx-auto mb-3" />
+                <p className="text-sm font-medium text-armadillo-text mb-1">No posts yet</p>
+                <p className="text-[11px] text-armadillo-muted">
+                  Post data will appear here once your account has been scraped. Go to the Dashboard to scrape your account.
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Trends Tab — live data, lazy-loaded */}
       {activeTab === 'trends' && (

@@ -12,6 +12,8 @@ import type { Post, Platform } from '@/lib/types';
 import { getAIOneLiner } from '@/lib/ai-insights';
 import { persistImagesClientSide } from '@/lib/image-cache';
 
+const PULL_THRESHOLD = 80;
+
 const EngagementBreakdown = dynamic(() => import('@/components/mobile/charts/EngagementBreakdown'), { ssr: false });
 const EngagementTrend = dynamic(() => import('@/components/mobile/charts/EngagementTrend'), { ssr: false });
 const PeakHours = dynamic(() => import('@/components/mobile/charts/PeakHours'), { ssr: false });
@@ -164,6 +166,13 @@ export default function MobileDashboard() {
   // Track the latest scraped platform + posts for image persistence
   const [lastScrape, setLastScrape] = useState<{ platform: Platform; posts: Post[]; profile: Record<string, unknown> } | null>(null);
 
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const isPulling = useRef(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
   const handleRefresh = useCallback(async () => {
     if (!profile || scraping) return;
     // Use the first selected platform that has a username
@@ -283,6 +292,45 @@ export default function MobileDashboard() {
       setScraping(false);
     }
   }, [profile, scraping]);
+
+  // Pull-to-refresh touch handlers
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (pullRefreshing || scraping) return;
+    const container = scrollContainerRef.current;
+    // Only activate when scrolled to top
+    if (container && container.scrollTop <= 0) {
+      touchStartY.current = e.touches[0].clientY;
+      isPulling.current = true;
+    }
+  }, [pullRefreshing, scraping]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling.current) return;
+    const currentY = e.touches[0].clientY;
+    const delta = currentY - touchStartY.current;
+    if (delta > 0) {
+      // Apply resistance: the further you pull, the harder it gets
+      const dampened = Math.min(delta * 0.5, 130);
+      setPullDistance(dampened);
+    } else {
+      // Scrolling up — cancel pull gesture
+      isPulling.current = false;
+      setPullDistance(0);
+    }
+  }, []);
+
+  const onTouchEnd = useCallback(async () => {
+    if (!isPulling.current) return;
+    isPulling.current = false;
+
+    if (pullDistance >= PULL_THRESHOLD) {
+      setPullRefreshing(true);
+      setPullDistance(PULL_THRESHOLD); // Hold at threshold while refreshing
+      await handleRefresh();
+      setPullRefreshing(false);
+    }
+    setPullDistance(0);
+  }, [pullDistance, handleRefresh]);
 
   // Persist images to Vercel Blob after a successful scrape
   useEffect(() => {
@@ -421,8 +469,51 @@ export default function MobileDashboard() {
     }
   }
 
+  const pullProgress = Math.min(pullDistance / PULL_THRESHOLD, 1);
+  const spinnerRotation = pullRefreshing ? undefined : pullProgress * 270;
+
   return (
-    <div className="pb-20">
+    <div
+      ref={scrollContainerRef}
+      className="pb-20 overscroll-none"
+      style={{ overflow: 'auto', WebkitOverflowScrolling: 'touch' }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      <div
+        className="flex items-center justify-center overflow-hidden transition-[height] duration-200 ease-out"
+        style={{
+          height: pullDistance > 0 || pullRefreshing ? `${pullDistance}px` : '0px',
+          transition: isPulling.current ? 'none' : 'height 0.3s ease-out',
+        }}
+      >
+        <div
+          className="flex flex-col items-center justify-center gap-1"
+          style={{
+            opacity: pullProgress,
+            transform: `scale(${0.5 + pullProgress * 0.5})`,
+          }}
+        >
+          {pullRefreshing ? (
+            <Loader2 size={20} className="text-burnt animate-spin" />
+          ) : (
+            <RefreshCw
+              size={20}
+              className="text-burnt"
+              style={{
+                transform: `rotate(${spinnerRotation}deg)`,
+                transition: isPulling.current ? 'none' : 'transform 0.2s ease',
+              }}
+            />
+          )}
+          <span className="text-[10px] text-armadillo-muted font-medium">
+            {pullRefreshing ? 'Refreshing...' : pullProgress >= 1 ? 'Release to refresh' : 'Pull to refresh'}
+          </span>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="px-5 pt-6 pb-4 flex items-center justify-between">
         <div>
