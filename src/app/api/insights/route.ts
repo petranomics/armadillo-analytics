@@ -86,6 +86,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Try VPS agent first (Mistral 7B on Hostinger — free), fall back to Anthropic
+    const vpsUrl = process.env.VPS_AGENT_URL; // e.g. http://72.60.120.245:3000/agent/analyze
+    const vpsKey = process.env.VPS_AGENT_KEY;
+
+    if (vpsUrl && vpsKey) {
+      try {
+        const vpsRes = await fetch(vpsUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': vpsKey },
+          body: JSON.stringify({
+            posts: posts.map(p => ({
+              caption: p.caption,
+              publishedAt: new Date(Date.now() - (p.daysAgo || 0) * 86400000).toISOString(),
+              metrics: { likes: p.likes, comments: p.comments, shares: p.shares, views: p.views },
+              engagementRate: p.engagement,
+              type: 'Image',
+            })),
+            profile: { username, followers: followers || 0, platform },
+            userType: userType || 'influencer',
+          }),
+          signal: AbortSignal.timeout(130000), // 130s timeout (Mistral can be slow)
+        });
+
+        if (vpsRes.ok) {
+          const vpsData = await vpsRes.json();
+          console.log('[insights] Used VPS Mistral agent');
+          return NextResponse.json({
+            generatedAt: new Date().toLocaleString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+              hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+            }),
+            sections: [
+              { title: 'Content Strategy', body: vpsData.contentStrategy || '' },
+              { title: 'Engagement Analysis', body: vpsData.engagementAnalysis || '' },
+              { title: 'Top Performing Content', body: vpsData.topContent || '' },
+              { title: 'Growth Recommendations', body: (vpsData.recommendations || []).join('\n\n') },
+              { title: 'Brand Readiness', body: `${vpsData.brandReadiness || ''}\n\nOverall Score: ${vpsData.overallScore || 'N/A'}/100` },
+            ],
+            source: 'mistral',
+          });
+        }
+        console.warn('[insights] VPS agent failed, falling back to Anthropic:', vpsRes.status);
+      } catch (err) {
+        console.warn('[insights] VPS agent unreachable, falling back to Anthropic:', err instanceof Error ? err.message : err);
+      }
+    }
+
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
