@@ -2,13 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db/neon';
 
 function checkAdminKey(request: NextRequest): boolean {
-  const key = request.headers.get('x-admin-key');
-  return key === process.env.BETA_ADMIN_KEY;
+  const key = request.headers.get('x-admin-key')?.trim();
+  const envKey = process.env.BETA_ADMIN_KEY?.trim();
+  if (!envKey) {
+    console.error('[admin/beta] BETA_ADMIN_KEY env var is not set');
+    return false;
+  }
+  return key === envKey;
 }
 
 export async function GET(request: NextRequest) {
   if (!checkAdminKey(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const hasEnv = !!process.env.BETA_ADMIN_KEY;
+    return NextResponse.json({ error: 'Unauthorized', _debug: { envSet: hasEnv } }, { status: 401 });
   }
 
   const sql = getDb();
