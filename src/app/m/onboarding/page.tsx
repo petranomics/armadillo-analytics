@@ -58,19 +58,19 @@ export default function OnboardingPage() {
     });
   };
 
+  // Beta users: cap at 3 platforms
+  const maxPlatforms = 3;
+
   // Platform toggle helper
   const togglePlatform = (platform: Platform) => {
     setState(s => {
       const isSelected = s.selectedPlatforms.includes(platform);
-      if (s.plan !== 'pro') {
-        // Free & Lite: single platform toggle
-        return { ...s, selectedPlatforms: isSelected ? [] : [platform] };
+      if (isSelected) {
+        return { ...s, selectedPlatforms: s.selectedPlatforms.filter(p => p !== platform) };
       }
-      // Pro: multi toggle
-      const newPlatforms = isSelected
-        ? s.selectedPlatforms.filter(p => p !== platform)
-        : [...s.selectedPlatforms, platform];
-      return { ...s, selectedPlatforms: newPlatforms };
+      // Enforce max platforms for beta
+      if (s.selectedPlatforms.length >= maxPlatforms) return s;
+      return { ...s, selectedPlatforms: [...s.selectedPlatforms, platform] };
     });
   };
 

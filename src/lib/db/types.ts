@@ -8,8 +8,23 @@ export interface DbUserAccount {
   email: string | null;
   user_type: string;
   plan: 'free' | 'lite' | 'pro';
+  clerk_id: string | null;
+  beta_status: 'none' | 'pending' | 'approved' | 'denied';
   created_at: string;
   updated_at: string;
+}
+
+export interface DbBetaRequest {
+  id: string;
+  user_id: string | null;
+  clerk_id: string;
+  email: string;
+  display_name: string | null;
+  reason: string | null;
+  status: 'pending' | 'approved' | 'denied';
+  max_platforms: number;
+  reviewed_at: string | null;
+  created_at: string;
 }
 
 export interface DbPlatformConnection {

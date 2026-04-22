@@ -32,6 +32,7 @@ export async function POST() {
       display_name: account.display_name,
       user_type: account.user_type,
       plan: account.plan,
+      beta_status: account.beta_status || 'none',
     });
   } catch (error) {
     console.error('[auth/sync]', error);

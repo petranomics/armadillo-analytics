@@ -8,6 +8,13 @@ export default function MobileRoot() {
   const router = useRouter();
 
   useEffect(() => {
+    // Check beta cookie first
+    const hasBetaCookie = document.cookie.includes('beta_approved=1');
+    if (!hasBetaCookie) {
+      router.replace('/m/beta-gate');
+      return;
+    }
+
     const profile = getMobileProfile();
     if (profile.onboardingComplete) {
       router.replace('/m/dashboard');
