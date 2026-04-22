@@ -12,20 +12,27 @@ const NAV_ITEMS = [
   { href: '/m/settings', icon: Settings, label: 'Settings' },
 ];
 
+function hapticTap() {
+  if ('vibrate' in navigator) {
+    navigator.vibrate(10);
+  }
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-armadillo-card border-t border-armadillo-border z-50 safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-armadillo-card/95 backdrop-blur-md border-t border-armadillo-border z-50 safe-area-bottom">
       <div className="flex items-center justify-around h-16">
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href || (item.href === '/m/dashboard' && pathname === '/m/dashboard');
+          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${
+              onClick={hapticTap}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-all active:scale-90 min-w-[44px] min-h-[44px] justify-center ${
                 isActive
                   ? 'text-burnt'
                   : 'text-armadillo-muted'

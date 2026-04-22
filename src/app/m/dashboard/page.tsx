@@ -6,11 +6,15 @@ import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
 import { USER_TYPES, ALL_METRICS, type MetricDefinition, type MetricCategory, CATEGORY_LABELS } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
-import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, AlertCircle, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronUp, RefreshCw, Bell, Sparkles, Info, AlertCircle, Loader2, ChevronRight } from 'lucide-react';
+import OfflineBanner from '@/components/mobile/OfflineBanner';
+import NotificationPanel from '@/components/mobile/NotificationPanel';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { Post, Platform } from '@/lib/types';
 import { getAIOneLiner } from '@/lib/ai-insights';
 import { persistImagesClientSide } from '@/lib/image-cache';
+import { computeCompoundMetrics, type CompoundMetrics } from '@/lib/compound-metrics';
 
 const PULL_THRESHOLD = 80;
 
@@ -162,6 +166,14 @@ export default function MobileDashboard() {
   const [isLive, setIsLive] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [compoundMetrics, setCompoundMetrics] = useState<CompoundMetrics | null>(null);
+  const [contentAnalysis, setContentAnalysis] = useState<{
+    bestPostingHour: string | null;
+    topHashtags: { tag: string; avgEng: number }[];
+    topPostCount: number;
+    contentTypes: { type: string; count: number; avgEng: number }[];
+  } | null>(null);
   const blobUploadedRef = useRef(false);
   // Track the latest scraped platform + posts for image persistence
   const [lastScrape, setLastScrape] = useState<{ platform: Platform; posts: Post[]; profile: Record<string, unknown> } | null>(null);
@@ -409,6 +421,74 @@ export default function MobileDashboard() {
     return () => window.removeEventListener('storage', handleStorage);
   }, [profile]);
 
+  // Compute compound metrics + content analysis from post data
+  useEffect(() => {
+    if (allPosts.length === 0 || !liveMetrics) return;
+
+    // Compound metrics
+    const cm = computeCompoundMetrics(allPosts, liveMetrics.followers);
+    setCompoundMetrics(cm);
+
+    // Content analysis: best posting hour
+    const hourBuckets: Record<number, { count: number; totalEng: number }> = {};
+    for (const p of allPosts) {
+      const h = new Date(p.publishedAt).getHours();
+      if (isNaN(h)) continue;
+      if (!hourBuckets[h]) hourBuckets[h] = { count: 0, totalEng: 0 };
+      hourBuckets[h].count++;
+      hourBuckets[h].totalEng += (p.metrics.likes ?? 0) + (p.metrics.comments ?? 0) + (p.metrics.shares ?? 0);
+    }
+    let bestHour: number | null = null;
+    let bestAvg = 0;
+    for (const [h, b] of Object.entries(hourBuckets)) {
+      const a = b.totalEng / b.count;
+      if (a > bestAvg && b.count >= 2) { bestAvg = a; bestHour = parseInt(h); }
+    }
+    const bestPostingHour = bestHour !== null
+      ? `${bestHour % 12 || 12}${bestHour >= 12 ? 'PM' : 'AM'}`
+      : null;
+
+    // Top hashtags
+    const hashEng: Record<string, { totalEng: number; count: number }> = {};
+    for (const p of allPosts) {
+      const eng = (p.metrics.likes ?? 0) + (p.metrics.comments ?? 0) + (p.metrics.shares ?? 0);
+      for (const tag of p.hashtags ?? []) {
+        const t = tag.toLowerCase().replace(/^#/, '');
+        if (!hashEng[t]) hashEng[t] = { totalEng: 0, count: 0 };
+        hashEng[t].totalEng += eng;
+        hashEng[t].count++;
+      }
+    }
+    const topHashtags = Object.entries(hashEng)
+      .filter(([, v]) => v.count >= 2)
+      .map(([tag, v]) => ({ tag, avgEng: Math.round(v.totalEng / v.count) }))
+      .sort((a, b) => b.avgEng - a.avgEng)
+      .slice(0, 5);
+
+    // Content types
+    const typeEng: Record<string, { count: number; totalEng: number }> = {};
+    for (const p of allPosts) {
+      const raw = (p.contentType ?? 'Post').toLowerCase();
+      let type = 'Post';
+      if (raw.includes('video') || raw.includes('reel') || raw === 'clip') type = 'Reels / Video';
+      else if (raw.includes('carousel') || raw.includes('sidecar')) type = 'Carousel';
+      else if (raw.includes('image') || raw.includes('photo')) type = 'Photo';
+      if (!typeEng[type]) typeEng[type] = { count: 0, totalEng: 0 };
+      typeEng[type].count++;
+      typeEng[type].totalEng += (p.metrics.likes ?? 0) + (p.metrics.comments ?? 0) + (p.metrics.shares ?? 0);
+    }
+    const contentTypes = Object.entries(typeEng)
+      .map(([type, v]) => ({ type, count: v.count, avgEng: Math.round(v.totalEng / v.count) }))
+      .sort((a, b) => b.avgEng - a.avgEng);
+
+    setContentAnalysis({
+      bestPostingHour,
+      topHashtags,
+      topPostCount: allPosts.length,
+      contentTypes,
+    });
+  }, [allPosts, liveMetrics]);
+
   if (!loaded || !profile) return null;
 
   const userConfig = USER_TYPES.find(u => u.id === profile.userType);
@@ -441,7 +521,16 @@ export default function MobileDashboard() {
       return n.toLocaleString();
     };
 
+    const pct = (n: number | null | undefined) =>
+      n !== null && n !== undefined ? { value: `${n}%`, trend: 0, raw: n } : null;
+    const num = (n: number | null | undefined) =>
+      n !== null && n !== undefined ? { value: formatNum(n), trend: 0, raw: n } : null;
+
+    const cm = compoundMetrics;
+    const ca = contentAnalysis;
+
     switch (metric.id) {
+      // === Core engagement (from liveMetrics) ===
       case 'engagement_rate':
         return { value: `${liveMetrics.engagementRate}%`, trend: 0, raw: liveMetrics.engagementRate };
       case 'likes':
@@ -451,19 +540,127 @@ export default function MobileDashboard() {
       case 'comments':
         return { value: formatNum(liveMetrics.totalComments), trend: 0, raw: liveMetrics.totalComments };
       case 'shares':
-        return { value: liveMetrics.totalShares > 0 ? formatNum(liveMetrics.totalShares) : '--', trend: 0, raw: liveMetrics.totalShares };
+      case 'reposts':
+        return liveMetrics.totalShares > 0
+          ? { value: formatNum(liveMetrics.totalShares), trend: 0, raw: liveMetrics.totalShares }
+          : { value: '--', trend: 0, raw: 0 };
       case 'saves':
-        return { value: liveMetrics.totalSaves > 0 ? formatNum(liveMetrics.totalSaves) : '--', trend: 0, raw: liveMetrics.totalSaves };
+        return liveMetrics.totalSaves > 0
+          ? { value: formatNum(liveMetrics.totalSaves), trend: 0, raw: liveMetrics.totalSaves }
+          : { value: '--', trend: 0, raw: 0 };
       case 'views':
       case 'video_views':
-        return { value: liveMetrics.totalViews > 0 ? formatNum(liveMetrics.totalViews) : '--', trend: 0, raw: liveMetrics.totalViews };
+        return liveMetrics.totalViews > 0
+          ? { value: formatNum(liveMetrics.totalViews), trend: 0, raw: liveMetrics.totalViews }
+          : { value: '--', trend: 0, raw: 0 };
+
+      // === Compound metrics (from post analysis) ===
+      case 'conversation_rate':
+        return pct(cm?.conversationRate) ?? { value: '--', trend: 0, raw: 0 };
+      case 'amplification_rate':
+        return pct(cm?.amplificationRate) ?? { value: '--', trend: 0, raw: 0 };
+      case 'virality_rate':
+        return pct(cm?.viralityRate) ?? { value: '--', trend: 0, raw: 0 };
+      case 'comment_to_like_ratio':
+        return pct(cm?.commentToLikeRatio) ?? { value: '--', trend: 0, raw: 0 };
+      case 'views_to_eng_rate':
+        return pct(cm?.viewsToEngRate) ?? { value: '--', trend: 0, raw: 0 };
+      case 'save_rate':
+        return pct(cm?.saveRate) ?? { value: '--', trend: 0, raw: 0 };
+      case 'follower_to_view_ratio':
+        return cm?.followerToViewRatio !== null && cm?.followerToViewRatio !== undefined
+          ? { value: `${cm.followerToViewRatio}x`, trend: 0, raw: cm.followerToViewRatio }
+          : { value: '--', trend: 0, raw: 0 };
+
+      // === Content intelligence (from compound metrics) ===
+      case 'hashtag_performance':
+        if (cm?.hashtagLift !== null && cm?.hashtagLift !== undefined) {
+          return { value: `${cm.hashtagLift > 0 ? '+' : ''}${cm.hashtagLift}%`, trend: 0, raw: cm.hashtagLift };
+        }
+        if (ca && ca.topHashtags.length > 0) {
+          return { value: `#${ca.topHashtags[0].tag}`, trend: 0, raw: ca.topHashtags[0].avgEng };
+        }
+        return { value: '--', trend: 0, raw: 0 };
+      case 'content_topic_analysis':
+        if (ca && ca.contentTypes.length > 0) {
+          return { value: ca.contentTypes[0].type, trend: 0, raw: ca.contentTypes[0].avgEng };
+        }
+        return { value: '--', trend: 0, raw: 0 };
+      case 'best_posting_times':
+        return ca?.bestPostingHour
+          ? { value: ca.bestPostingHour, trend: 0, raw: 0 }
+          : { value: '--', trend: 0, raw: 0 };
+      case 'content_velocity':
+        return num(cm?.engagementVelocity) ?? { value: '--', trend: 0, raw: 0 };
+      case 'top_posts':
+      case 'top_videos':
+        return ca
+          ? { value: `${ca.topPostCount} posts`, trend: 0, raw: ca.topPostCount }
+          : { value: '--', trend: 0, raw: 0 };
+
+      // === Brand / monetization (from compound metrics) ===
+      case 'media_kit_score':
+        return num(cm?.brandReadinessScore) ?? { value: '--', trend: 0, raw: 0 };
+      case 'rate_recommendation':
+      case 'sponsorship_roi':
+        return cm?.estimatedPostValue
+          ? { value: `$${formatNum(cm.estimatedPostValue)}`, trend: 0, raw: cm.estimatedPostValue }
+          : { value: '--', trend: 0, raw: 0 };
+      case 'revenue_per_mille':
+        return cm?.estimatedCPM
+          ? { value: `$${cm.estimatedCPM.toFixed(2)}`, trend: 0, raw: cm.estimatedCPM }
+          : { value: '--', trend: 0, raw: 0 };
+
+      // === Content consistency ===
+      case 'content_lifecycle':
+      case 'seasonal_trends':
+        return num(cm?.postingConsistency) ?? { value: '--', trend: 0, raw: 0 };
+
+      // === Not available from scraping ===
       case 'profile_views':
       case 'reach':
       case 'impressions':
       case 'website_taps':
       case 'directions_taps':
       case 'call_taps':
+      case 'link_clicks':
+      case 'traffic_sources':
+      case 'article_amplification_rate':
+      case 'cross_platform_reach':
+      case 'audience_demographics':
+      case 'audience_authenticity':
+      case 'audience_seniority':
+      case 'audience_industries':
+      case 'audience_company_size':
+      case 'audience_overlap':
+      case 'local_audience_percentage':
+      case 'brand_affinity':
+      case 'returning_viewers':
+      case 'competitor_benchmark':
+      case 'competitor_local_benchmark':
+      case 'product_trending_score':
+      case 'watch_time':
+      case 'avg_view_duration':
+      case 'audience_retention_curve':
+      case 'story_completion':
+      case 'reel_retention':
+      case 'click_through_rate':
+      case 'sentiment_analysis':
+      case 'shop_clicks':
+      case 'conversion_rate':
+      case 'revenue_per_video':
+      case 'add_to_cart_rate':
+      case 'customer_acquisition_cost':
+      case 'affiliate_performance':
+      case 'promo_code_performance':
+      case 'content_roi':
+      case 'ugc_tracking':
+      case 'shorts_vs_long_performance':
+      case 'optimal_video_length':
+      case 'subscriber_growth':
+      case 'reactions_breakdown':
         return { value: '--', trend: 0, raw: 0 };
+
       default:
         return { value: '--', trend: 0, raw: 0 };
     }
@@ -536,7 +733,10 @@ export default function MobileDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button className="w-9 h-9 rounded-full bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted">
+          <button
+            onClick={() => setNotificationsOpen(true)}
+            className="w-9 h-9 rounded-full bg-armadillo-card border border-armadillo-border flex items-center justify-center text-armadillo-muted active:scale-90 transition-transform"
+          >
             <Bell size={16} />
           </button>
           <button
@@ -560,37 +760,32 @@ export default function MobileDashboard() {
         </div>
       )}
 
-      {/* Platform Badges */}
+      <OfflineBanner />
+
+      {/* Platform Pills — tap to view platform dashboard */}
       <div className="px-5 mb-4">
-        <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase">Connected Platforms</span>
-            <div className="flex items-center gap-1 text-xs text-success">
-              <div className="w-1.5 h-1.5 rounded-full bg-success" />
-              {profile.plan === 'pro' ? 'Pro' : profile.plan === 'lite' ? 'Lite' : 'Free'}
-            </div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {profile.selectedPlatforms.map((platform) => (
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {profile.selectedPlatforms.map((platform) => (
+            <Link
+              key={platform}
+              href={`/m/${platform}`}
+              className="flex items-center gap-2 bg-armadillo-card border border-armadillo-border rounded-xl px-3 py-2.5 shrink-0 active:scale-95 transition-transform min-h-[44px]"
+            >
               <div
-                key={platform}
-                className="flex items-center gap-2 bg-armadillo-bg border border-armadillo-border rounded-xl px-3 py-2"
+                className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold shrink-0"
+                style={{ backgroundColor: `var(--color-platform-${platform})`, color: platform === 'tiktok' ? '#000' : '#fff' }}
               >
-                <div
-                  className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold shrink-0"
-                  style={{ backgroundColor: `var(--color-platform-${platform})`, color: platform === 'tiktok' ? '#000' : '#fff' }}
-                >
-                  {PLATFORM_NAMES[platform].charAt(0)}
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-armadillo-text">{PLATFORM_NAMES[platform]}</div>
-                  <div className="text-[9px] text-armadillo-muted">
-                    {profile.platformUsernames[platform] ? `@${profile.platformUsernames[platform]}` : 'Not connected'}
-                  </div>
+                {PLATFORM_NAMES[platform].charAt(0)}
+              </div>
+              <div>
+                <div className="text-xs font-medium text-armadillo-text">{PLATFORM_NAMES[platform]}</div>
+                <div className="text-[9px] text-armadillo-muted">
+                  {profile.platformUsernames[platform] ? `@${profile.platformUsernames[platform]}` : 'Not connected'}
                 </div>
               </div>
-            ))}
-          </div>
+              <ChevronRight size={14} className="text-armadillo-muted ml-1" />
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -665,10 +860,14 @@ export default function MobileDashboard() {
         {hasVideoMetrics && <WatchDuration />}
       </div>
 
-      {/* Remaining Metrics by Category */}
+      {/* Remaining Metrics by Category — hide categories where every metric is '--' */}
       {Object.entries(grouped).map(([category, metrics]) => {
         const categoryMetrics = metrics.filter(m => !heroMetrics.includes(m));
         if (categoryMetrics.length === 0) return null;
+
+        // Skip entire category if all metrics would show '--'
+        const hasAnyData = categoryMetrics.some(m => getMetricValue(m).value !== '--');
+        if (!hasAnyData) return null;
 
         return (
           <div key={category} className="px-5 mb-5">
@@ -760,6 +959,7 @@ export default function MobileDashboard() {
       </div>
 
       <BottomNav />
+      <NotificationPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
     </div>
   );
 }

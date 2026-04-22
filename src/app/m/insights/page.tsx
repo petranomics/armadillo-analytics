@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
 import { getMediaKit } from '@/lib/media-kit';
@@ -8,6 +8,7 @@ import { PLATFORM_NAMES, PLATFORM_COLORS } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
 import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, ArrowUpRight, Sparkles, Lock, ChevronDown, ChevronUp, Loader2, RefreshCw, Hash, ExternalLink, ArrowDownUp, Calendar, Image as ImageIcon } from 'lucide-react';
 import type { Platform, Post, TrendData, HashtagStats, HashtagPost, RedditTrend, TikTokTrend } from '@/lib/types';
+import OfflineBanner from '@/components/mobile/OfflineBanner';
 
 type PostSortKey = 'date' | 'likes' | 'engagement';
 
@@ -233,8 +234,33 @@ export default function InsightsPage() {
 
   const anyTrendLoading = Object.values(trendLoading).some(Boolean);
 
+  // Swipe gesture support for tabs
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+
+  const handleSwipeStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleSwipeEnd = useCallback((e: React.TouchEvent) => {
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > Math.abs(deltaX)) return;
+
+    const currentIdx = tabs.indexOf(activeTab);
+    if (deltaX < 0 && currentIdx < tabs.length - 1) {
+      setActiveTab(tabs[currentIdx + 1]);
+      if ('vibrate' in navigator) navigator.vibrate(10);
+    } else if (deltaX > 0 && currentIdx > 0) {
+      setActiveTab(tabs[currentIdx - 1]);
+      if ('vibrate' in navigator) navigator.vibrate(10);
+    }
+  }, [activeTab, tabs]);
+
   return (
-    <div className="pb-20">
+    <div className="pb-20" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
+      <OfflineBanner />
       {/* Header */}
       <div className="px-5 pt-6 pb-2">
         <h1 className="font-display text-xl text-armadillo-text">Insights</h1>
@@ -243,14 +269,17 @@ export default function InsightsPage() {
         </p>
       </div>
 
-      {/* Tab Bar */}
+      {/* Tab Bar — swipe left/right to switch */}
       <div className="px-5 mb-4">
         <div className="flex gap-1 bg-armadillo-card border border-armadillo-border rounded-xl p-1">
           {tabs.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1 ${
+              onClick={() => {
+                setActiveTab(tab);
+                if ('vibrate' in navigator) navigator.vibrate(10);
+              }}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 active:scale-95 min-h-[40px] ${
                 activeTab === tab ? 'bg-burnt text-white' : 'text-armadillo-muted'
               }`}
             >

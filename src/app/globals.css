@@ -47,9 +47,38 @@ body {
   background: var(--color-armadillo-muted);
 }
 
-/* Mobile safe area */
+/* Mobile safe areas */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Hide scrollbar but keep scrolling */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch target minimum (Apple HIG) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Page transitions */
+@media (prefers-reduced-motion: no-preference) {
+  .page-transition {
+    animation: fadeSlideIn 0.2s ease-out;
+  }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 }
 
 /* Smooth transitions for onboarding */
@@ -64,4 +93,12 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Standalone PWA — hide address bar artifacts */
+@media all and (display-mode: standalone) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }

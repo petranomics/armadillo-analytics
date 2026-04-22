@@ -19,6 +19,15 @@ const lexend = Lexend({
 export const metadata: Metadata = {
   title: "Armadillo Analytics",
   description: "Social media analytics for creators. Texas-built.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Armadillo",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 export default function RootLayout({
