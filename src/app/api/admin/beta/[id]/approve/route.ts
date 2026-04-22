@@ -5,8 +5,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const key = request.headers.get('x-admin-key');
-  if (key !== process.env.BETA_ADMIN_KEY) {
+  const key = request.headers.get('x-admin-key')?.trim();
+  if (!key || key !== process.env.BETA_ADMIN_KEY?.trim()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
