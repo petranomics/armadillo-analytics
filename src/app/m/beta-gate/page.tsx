@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
-import BottomNav from '@/components/mobile/BottomNav';
-import { Shield, Loader2, CheckCircle, Clock, XCircle, Send } from 'lucide-react';
+import { useUser, SignInButton } from '@clerk/nextjs';
+import { Shield, Loader2, CheckCircle, Clock, XCircle, Send, LogIn } from 'lucide-react';
 
 type BetaStatus = 'loading' | 'none' | 'pending' | 'approved' | 'denied';
 
@@ -19,7 +18,7 @@ export default function MobileBetaGate() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) {
-      router.replace('/m/onboarding');
+      setStatus('none');
       return;
     }
 
@@ -72,7 +71,22 @@ export default function MobileBetaGate() {
           <Shield size={32} className="text-burnt" />
         </div>
 
-        {status === 'none' && (
+        {status === 'none' && !isSignedIn && (
+          <>
+            <h1 className="font-display text-2xl text-armadillo-text mb-2">Armadillo Analytics</h1>
+            <p className="text-sm text-armadillo-muted mb-6">
+              Private beta. Sign in to request access.
+            </p>
+            <SignInButton mode="modal">
+              <button className="w-full flex items-center justify-center gap-2 bg-burnt text-white py-3.5 rounded-xl font-medium text-sm active:scale-95 transition-transform min-h-[44px]">
+                <LogIn size={18} />
+                Sign In
+              </button>
+            </SignInButton>
+          </>
+        )}
+
+        {status === 'none' && isSignedIn && (
           <>
             <h1 className="font-display text-2xl text-armadillo-text mb-2">Request Beta Access</h1>
             <p className="text-sm text-armadillo-muted mb-6">
