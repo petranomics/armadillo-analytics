@@ -17,7 +17,7 @@ const MOBILE_ROUTES: Record<string, string> = {
 const PLATFORM_ROUTES = ['/instagram', '/tiktok', '/youtube', '/twitter', '/linkedin'];
 
 // Routes that skip beta check
-const BETA_BYPASS = ['/api/', '/admin/', '/beta-gate', '/m/beta-gate', '/_next/', '/sign-in', '/sign-up'];
+const BETA_BYPASS = ['/api/', '/admin', '/beta-gate', '/m/beta-gate', '/_next/', '/sign-in', '/sign-up', '/manifest.json', '/sw.js', '/icons/'];
 
 function betaGateRedirect(request: NextRequest): NextResponse | null {
   const { pathname } = request.nextUrl;
@@ -90,6 +90,11 @@ function mobileRedirect(request: NextRequest) {
 }
 
 export default clerkMiddleware(async (_auth, request) => {
+  const { pathname } = request.nextUrl;
+
+  // Admin routes skip all gates and redirects
+  if (pathname.startsWith('/admin')) return NextResponse.next();
+
   // Beta gate — redirect unapproved users before anything else
   const betaRedirect = betaGateRedirect(request);
   if (betaRedirect) return betaRedirect;
