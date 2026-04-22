@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile, saveUserProfile, clearUserProfile, type UserProfile } from '@/lib/store';
 import { USER_TYPES } from '@/lib/user-types';
-import { PLATFORM_NAMES, PLATFORMS } from '@/lib/constants';
-import { Save, Trash2, CheckCircle, Crown, Hash, X, Plus, ShieldCheck } from 'lucide-react';
+import { PLATFORM_NAMES } from '@/lib/constants';
+import { Save, Trash2, CheckCircle, Crown, Hash, X, Plus } from 'lucide-react';
 import type { Platform } from '@/lib/types';
 import BottomNav from '@/components/mobile/BottomNav';
 
@@ -28,7 +28,6 @@ export default function MobileSettingsPage() {
   const [trackedSubreddits, setTrackedSubreddits] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState('');
   const [subredditInput, setSubredditInput] = useState('');
-  const [apifyApiKey, setApifyApiKey] = useState('');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -42,7 +41,6 @@ export default function MobileSettingsPage() {
     setCompetitors(p.competitorAccounts);
     setTrackedHashtags(p.trackedHashtags || []);
     setTrackedSubreddits(p.trackedSubreddits || []);
-    setApifyApiKey(p.apifyApiKey || '');
     setLoaded(true);
   }, [router]);
 
@@ -58,7 +56,6 @@ export default function MobileSettingsPage() {
       competitorAccounts: competitors,
       trackedHashtags,
       trackedSubreddits,
-      apifyApiKey,
     };
     saveUserProfile(updated);
     setProfile(updated);
@@ -173,25 +170,6 @@ export default function MobileSettingsPage() {
         </div>
       </div>
 
-      {/* API Key */}
-      <div className="px-5 mb-4">
-        <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck size={16} className="text-success" />
-            <h2 className="text-sm font-medium text-armadillo-text">Apify API Key</h2>
-          </div>
-          <input
-            type="password"
-            value={apifyApiKey}
-            onChange={(e) => setApifyApiKey(e.target.value)}
-            placeholder="apify_api_..."
-            className="w-full bg-armadillo-bg border border-armadillo-border rounded-xl px-4 py-2.5 text-sm text-armadillo-text placeholder-armadillo-muted/50 focus:outline-none focus:border-burnt transition-colors"
-          />
-          <p className="text-[10px] text-armadillo-muted mt-2">
-            Used for fetching analytics data. You can also set <code className="text-burnt/80">APIFY_API_KEY</code> in your environment variables.
-          </p>
-        </div>
-      </div>
 
       {/* Competitor Accounts */}
       <div className="px-5 mb-4">
