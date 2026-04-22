@@ -192,17 +192,115 @@ export default function InsightsPage() {
     }
   }, [activeTab, trendsFetched, profile, fetchTrend]);
 
-  // Fetch AI insights on demand
+  // Auto-scrape if no posts in localStorage — so insights works without visiting dashboard first
+  const [autoScraping, setAutoScraping] = useState(false);
+  const autoScrapeDone = useRef(false);
+
+  useEffect(() => {
+    if (!profile || posts.length > 0 || autoScrapeDone.current) return;
+    autoScrapeDone.current = true;
+
+    const platform = profile.selectedPlatforms.find(p => profile.platformUsernames[p]) as Platform | undefined;
+    if (!platform) return;
+    const username = profile.platformUsernames[platform]!;
+
+    setAutoScraping(true);
+    fetch('/api/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform, username }),
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (!json.results?.length) return;
+        // Save to localStorage so loadPostsFromStorage picks it up
+        const rawPosts = json.results.slice(0, 25);
+        const first = rawPosts[0] || {};
+        const followers = Number(first.followersCount || first.subscribersCount || first.followers || 0);
+
+        const mapped: Post[] = rawPosts.map((item: Record<string, unknown>, i: number) => {
+          const likes = Number(item.likesCount || item.diggCount || item.likes || item.heartCount || item.likeCount || 0);
+          const comments = Number(item.commentsCount || item.commentCount || item.comments || 0);
+          const shares = Number(item.sharesCount || item.shareCount || item.shares || item.retweetCount || 0);
+          const views = Number(item.videoViewCount || item.videoPlayCount || item.viewCount || item.playCount || item.views || 0);
+          const totalEng = likes + comments + shares;
+          return {
+            id: `${platform}-auto-${i}`,
+            platform,
+            url: String(item.url || item.postUrl || item.webVideoUrl || item.link || '#'),
+            caption: String(item.caption || item.text || item.title || item.description || item.fullText || ''),
+            thumbnailUrl: String(item.displayUrl || item.thumbnailUrl || ''),
+            contentType: String(item.type || item.productType || 'Image'),
+            hashtags: Array.isArray(item.hashtags) ? (item.hashtags as string[]) : [],
+            mentions: Array.isArray(item.mentions) ? (item.mentions as string[]) : [],
+            publishedAt: String(item.timestamp || item.createTime || item.publishedAt || item.date || item.createdAt || new Date().toISOString()),
+            metrics: { likes, comments, shares, views },
+            engagementRate: followers > 0 ? parseFloat(((totalEng / followers) * 100).toFixed(1)) : 0,
+          };
+        });
+
+        const avgEngRate = mapped.length > 0
+          ? parseFloat((mapped.reduce((s, p) => s + p.engagementRate, 0) / mapped.length).toFixed(1))
+          : 0;
+
+        const exportPayload = {
+          profile: { platform, username, followers },
+          posts: mapped,
+          computedMetrics: {
+            totalLikes: mapped.reduce((s, p) => s + p.metrics.likes, 0),
+            totalComments: mapped.reduce((s, p) => s + p.metrics.comments, 0),
+            totalShares: mapped.reduce((s, p) => s + (p.metrics.shares || 0), 0),
+            totalViews: mapped.reduce((s, p) => s + (p.metrics.views || 0), 0),
+            avgViewsPerPost: 0,
+            postingFreq: '',
+            avgEngagementRate: avgEngRate,
+          },
+        };
+
+        localStorage.setItem(`armadillo-export-data-${platform}`, JSON.stringify(exportPayload));
+        localStorage.setItem('armadillo-export-data', JSON.stringify(exportPayload));
+        setPosts(mapped);
+      })
+      .catch(() => { /* silent — user can still tap Generate manually */ })
+      .finally(() => setAutoScraping(false));
+  }, [profile, posts]);
+
+  // Fetch AI insights on demand — transforms Post[] to the flat shape the API expects
   const fetchAIInsights = useCallback(async () => {
-    if (!profile || posts.length === 0) return;
+    if (!profile) return;
+
+    // If no posts and not scraping, try one more localStorage reload
+    let currentPosts = posts;
+    if (currentPosts.length === 0) {
+      currentPosts = loadPostsFromStorage(profile.selectedPlatforms);
+      if (currentPosts.length > 0) setPosts(currentPosts);
+    }
+
+    if (currentPosts.length === 0) {
+      setAiError('No post data available. Go to Dashboard and scrape your account first.');
+      return;
+    }
+
     setAiLoading(true);
     setAiError(null);
     try {
+      // Transform Post objects to the flat PostData shape the API expects
+      const now = Date.now();
+      const flatPosts = currentPosts.map(p => ({
+        caption: p.caption || '',
+        likes: p.metrics?.likes ?? 0,
+        comments: p.metrics?.comments ?? 0,
+        shares: p.metrics?.shares ?? 0,
+        views: p.metrics?.views ?? 0,
+        engagement: p.engagementRate ?? 0,
+        daysAgo: Math.max(0, Math.round((now - new Date(p.publishedAt).getTime()) / 86400000)),
+      }));
+
       const res = await fetch('/api/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          posts,
+          posts: flatPosts,
           platform: profile.selectedPlatforms[0],
           username: profile.platformUsernames?.[profile.selectedPlatforms[0]] || 'unknown',
           userType: profile.userType,
@@ -334,13 +432,23 @@ export default function InsightsPage() {
           {/* No insights yet */}
           {!aiLoading && !aiAnalysis && !aiError && (
             <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-8 text-center">
-              <Sparkles size={24} className="text-armadillo-muted/40 mx-auto mb-3" />
-              <p className="text-sm font-medium text-armadillo-text mb-1">No AI insights yet</p>
-              <p className="text-[11px] text-armadillo-muted">
-                {posts.length > 0
-                  ? 'Tap "Generate" above to analyze your content performance.'
-                  : 'No post data available. Scrape your account first, then generate insights.'}
-              </p>
+              {autoScraping ? (
+                <>
+                  <Loader2 size={24} className="text-burnt animate-spin mx-auto mb-3" />
+                  <p className="text-sm font-medium text-armadillo-text mb-1">Fetching your posts...</p>
+                  <p className="text-[11px] text-armadillo-muted">Loading data so you can generate insights.</p>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={24} className="text-armadillo-muted/40 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-armadillo-text mb-1">No AI insights yet</p>
+                  <p className="text-[11px] text-armadillo-muted">
+                    {posts.length > 0
+                      ? 'Tap "Generate" above to analyze your content performance.'
+                      : 'No post data available. Scrape your account first, then generate insights.'}
+                  </p>
+                </>
+              )}
             </div>
           )}
 

@@ -153,12 +153,14 @@ export async function POST(request: NextRequest) {
       daysAgo: p.daysAgo,
     }));
 
-    const totalLikes = posts.reduce((s, p) => s + p.likes, 0);
-    const totalComments = posts.reduce((s, p) => s + p.comments, 0);
-    const totalViews = posts.reduce((s, p) => s + p.views, 0);
-    const avgEngagement = (posts.reduce((s, p) => s + p.engagement, 0) / posts.length).toFixed(1);
-    const topPost = [...posts].sort((a, b) => b.engagement - a.engagement)[0];
-    const worstPost = [...posts].sort((a, b) => a.engagement - b.engagement)[0];
+    const totalLikes = posts.reduce((s, p) => s + (p.likes || 0), 0);
+    const totalComments = posts.reduce((s, p) => s + (p.comments || 0), 0);
+    const totalViews = posts.reduce((s, p) => s + (p.views || 0), 0);
+    const avgEngagement = posts.length > 0
+      ? (posts.reduce((s, p) => s + (p.engagement || 0), 0) / posts.length).toFixed(1)
+      : '0';
+    const topPost = [...posts].sort((a, b) => (b.engagement || 0) - (a.engagement || 0))[0];
+    const worstPost = [...posts].sort((a, b) => (a.engagement || 0) - (b.engagement || 0))[0];
 
     const userMessage = `Analyze this creator's social media performance:
 
@@ -169,12 +171,12 @@ export async function POST(request: NextRequest) {
 **Posts analyzed:** ${posts.length}
 
 **Aggregate Metrics:**
-- Total likes: ${totalLikes.toLocaleString()}
-- Total comments: ${totalComments.toLocaleString()}
-- Total views: ${totalViews.toLocaleString()}
+- Total likes: ${(totalLikes || 0).toLocaleString()}
+- Total comments: ${(totalComments || 0).toLocaleString()}
+- Total views: ${(totalViews || 0).toLocaleString()}
 - Average engagement rate: ${avgEngagement}%
-- Top performing post: "${topPost.caption}" (${topPost.engagement}% engagement, ${topPost.likes.toLocaleString()} likes)
-- Lowest performing post: "${worstPost.caption}" (${worstPost.engagement}% engagement)
+- Top performing post: "${topPost?.caption || 'N/A'}" (${topPost?.engagement || 0}% engagement, ${(topPost?.likes || 0).toLocaleString()} likes)
+- Lowest performing post: "${worstPost?.caption || 'N/A'}" (${worstPost?.engagement || 0}% engagement)
 
 **Individual Post Data:**
 ${JSON.stringify(postsSummary, null, 2)}
@@ -182,10 +184,10 @@ ${JSON.stringify(postsSummary, null, 2)}
 ${trends ? `**Current Market Trends:**
 
 ${trends.hashtagStats ? `Trending Hashtags in their niche:
-${trends.hashtagStats.map(h => `- #${h.hashtag}: ${h.postCount.toLocaleString()} posts, trend: ${h.trend}${h.avgEngagement ? `, ${h.avgEngagement}% avg engagement` : ''}${h.relatedHashtags.length ? ` (related: ${h.relatedHashtags.slice(0, 3).join(', ')})` : ''}`).join('\n')}` : ''}
+${trends.hashtagStats.map(h => `- #${h.hashtag}: ${(h.postCount || 0).toLocaleString()} posts, trend: ${h.trend || 'unknown'}${h.avgEngagement ? `, ${h.avgEngagement}% avg engagement` : ''}${h.relatedHashtags?.length ? ` (related: ${h.relatedHashtags.slice(0, 3).join(', ')})` : ''}`).join('\n')}` : ''}
 
 ${trends.redditTrends ? `What people are discussing online:
-${trends.redditTrends.map(r => `- "${r.title}" (${r.subreddit}, ${r.upvotes.toLocaleString()} upvotes, ${r.comments} comments${r.flair ? `, flair: ${r.flair}` : ''})`).join('\n')}` : ''}
+${trends.redditTrends.map(r => `- "${r.title}" (${r.subreddit}, ${(r.upvotes || 0).toLocaleString()} upvotes, ${r.comments || 0} comments${r.flair ? `, flair: ${r.flair}` : ''})`).join('\n')}` : ''}
 
 ${trends.tiktokTrends ? `TikTok trending products/topics:
 ${trends.tiktokTrends.map(t => `- ${t.productName} (${t.category}${t.trendScore ? `, trend score: ${t.trendScore}/100` : ''}${t.description ? ` — ${t.description}` : ''})`).join('\n')}` : ''}` : 'No trend data available — focus analysis on the post performance data.'}
