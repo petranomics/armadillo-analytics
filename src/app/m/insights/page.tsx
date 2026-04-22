@@ -225,16 +225,8 @@ export default function InsightsPage() {
     }
   }, [profile, posts, hashtagStats, redditTrends, tiktokTrends]);
 
-  if (!loaded || !profile) return null;
-
-  const isPro = profile.plan === 'pro';
-  const isLiteOrAbove = profile.plan === 'lite' || profile.plan === 'pro';
-
+  // Swipe gesture support for tabs — hooks must be before any early return
   const tabs = (['ai', 'posts', 'trends'] as const);
-
-  const anyTrendLoading = Object.values(trendLoading).some(Boolean);
-
-  // Swipe gesture support for tabs
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -257,6 +249,13 @@ export default function InsightsPage() {
       if ('vibrate' in navigator) navigator.vibrate(10);
     }
   }, [activeTab, tabs]);
+
+  if (!loaded || !profile) return null;
+
+  const isPro = profile.plan === 'pro';
+  const isLiteOrAbove = profile.plan === 'lite' || profile.plan === 'pro';
+
+  const anyTrendLoading = Object.values(trendLoading).some(Boolean);
 
   return (
     <div className="pb-20" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeEnd}>
