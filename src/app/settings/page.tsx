@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getUserProfile, saveUserProfile, clearUserProfile, type UserProfile } from '@/lib/store';
+import { getUserProfile, saveUserProfile, clearUserProfile, getPlatformAccounts, type UserProfile } from '@/lib/store';
 import { USER_TYPES } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
-import { Save, Trash2, CheckCircle, ShieldCheck, User, Crown, RefreshCw, Hash, X, Plus, Check } from 'lucide-react';
+import { Save, Trash2, CheckCircle, User, Crown, RefreshCw, Hash, X, Plus, Check } from 'lucide-react';
 import type { Platform } from '@/lib/types';
 import { PLATFORMS } from '@/lib/constants';
 
@@ -27,7 +27,9 @@ export default function SettingsPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [usernames, setUsernames] = useState<Partial<Record<Platform, string>>>({});
+  const [accounts, setAccounts] = useState<Partial<Record<Platform, string[]>>>({});
+  const [activeAccount, setActiveAccount] = useState<Partial<Record<Platform, string>>>({});
+  const [newAccountInput, setNewAccountInput] = useState<Partial<Record<Platform, string>>>({});
   const [competitors, setCompetitors] = useState<string[]>([]);
   const [newCompetitor, setNewCompetitor] = useState('');
   const [trackedHashtags, setTrackedHashtags] = useState<string[]>([]);
@@ -38,6 +40,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
 
+  const MAX_ACCOUNTS = 3;
+
   useEffect(() => {
     const p = getUserProfile();
     if (!p.onboardingComplete) {
@@ -45,8 +49,16 @@ export default function SettingsPage() {
       return;
     }
     setProfile(p);
-    setUsernames(p.platformUsernames);
     setSelectedPlatforms(p.selectedPlatforms);
+
+    const accts: Partial<Record<Platform, string[]>> = {};
+    const active: Partial<Record<Platform, string>> = {};
+    for (const platform of p.selectedPlatforms) {
+      accts[platform] = getPlatformAccounts(p, platform);
+      active[platform] = p.activeAccount?.[platform] || accts[platform]?.[0] || '';
+    }
+    setAccounts(accts);
+    setActiveAccount(active);
     setCompetitors(p.competitorAccounts);
     setTrackedHashtags(p.trackedHashtags || []);
     setTrackedSubreddits(p.trackedSubreddits || []);
@@ -60,10 +72,17 @@ export default function SettingsPage() {
   const planLabel = profile.plan === 'pro' ? 'Pro' : profile.plan === 'lite' ? 'Lite' : 'Free';
 
   const handleSave = () => {
+    const legacyUsernames: Partial<Record<Platform, string>> = {};
+    for (const platform of selectedPlatforms) {
+      legacyUsernames[platform] = activeAccount[platform] || accounts[platform]?.[0] || '';
+    }
+
     const updated = {
       ...profile,
       selectedPlatforms,
-      platformUsernames: usernames,
+      platformUsernames: legacyUsernames,
+      platformAccounts: accounts,
+      activeAccount,
       competitorAccounts: competitors,
       trackedHashtags,
       trackedSubreddits,
@@ -176,19 +195,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* API Key Notice */}
-      <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <ShieldCheck size={16} className="text-success" />
-          <h2 className="text-sm font-medium text-armadillo-text">API Key (Server-Side)</h2>
-        </div>
-        <p className="text-xs text-armadillo-muted leading-relaxed">
-          Your Apify API key is stored securely as an environment variable on the server (<code className="text-burnt/80 text-[11px]">APIFY_API_KEY</code> in <code className="text-burnt/80 text-[11px]">.env.local</code>).
-          It is never exposed to the browser. To update it, edit the <code className="text-burnt/80 text-[11px]">.env.local</code> file or set it in your Vercel project environment variables.
-          You can also set platform-specific keys: <code className="text-burnt/80 text-[11px]">APIFY_API_KEY_IG</code>, <code className="text-burnt/80 text-[11px]">APIFY_API_KEY_TIKTOK</code>, <code className="text-burnt/80 text-[11px]">APIFY_API_KEY_LINKEDIN</code>.
-        </p>
-      </div>
-
       {/* Connected Platforms */}
       <div className="bg-armadillo-card border border-armadillo-border rounded-xl p-6 mb-6">
         <h2 className="text-sm font-medium text-armadillo-text mb-2">Connected Platforms</h2>
@@ -229,31 +235,109 @@ export default function SettingsPage() {
           })}
         </div>
 
-        {/* Usernames for selected platforms */}
-        <div className="space-y-4">
-          {selectedPlatforms.map((platform) => (
-            <div key={platform}>
-              <label className="flex items-center gap-2 text-xs font-medium text-armadillo-muted mb-1.5">
-                <span
-                  className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-bold"
-                  style={{
-                    backgroundColor: `var(--color-platform-${platform})`,
-                    color: platform === 'tiktok' ? '#000' : '#fff',
-                  }}
-                >
-                  {platform.charAt(0).toUpperCase()}
-                </span>
-                {PLATFORM_NAMES[platform]}
-              </label>
-              <input
-                type="text"
-                value={usernames[platform] || ''}
-                onChange={(e) => setUsernames({ ...usernames, [platform]: e.target.value })}
-                placeholder={PLATFORM_PLACEHOLDERS[platform]}
-                className="w-full bg-armadillo-bg border border-armadillo-border rounded-lg px-4 py-2.5 text-sm text-armadillo-text placeholder-armadillo-muted/50 focus:outline-none focus:border-burnt transition-colors"
-              />
-            </div>
-          ))}
+        {/* Accounts for selected platforms */}
+        <div className="space-y-5">
+          {selectedPlatforms.map((platform) => {
+            const platformAccts = accounts[platform] || [];
+            const isActive = (username: string) => activeAccount[platform] === username;
+            const canAdd = platformAccts.length < MAX_ACCOUNTS;
+
+            const addAccount = () => {
+              const val = (newAccountInput[platform] || '').trim().replace(/^@/, '');
+              if (!val || platformAccts.includes(val)) return;
+              const updated = { ...accounts, [platform]: [...platformAccts, val] };
+              setAccounts(updated);
+              if (platformAccts.length === 0) {
+                setActiveAccount({ ...activeAccount, [platform]: val });
+              }
+              setNewAccountInput({ ...newAccountInput, [platform]: '' });
+            };
+
+            const removeAccount = (username: string) => {
+              const remaining = platformAccts.filter(u => u !== username);
+              setAccounts({ ...accounts, [platform]: remaining });
+              if (activeAccount[platform] === username) {
+                setActiveAccount({ ...activeAccount, [platform]: remaining[0] || '' });
+              }
+            };
+
+            const switchAccount = (username: string) => {
+              setActiveAccount({ ...activeAccount, [platform]: username });
+            };
+
+            return (
+              <div key={platform}>
+                <label className="flex items-center gap-2 text-xs font-medium text-armadillo-muted mb-2">
+                  <span
+                    className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-bold"
+                    style={{
+                      backgroundColor: `var(--color-platform-${platform})`,
+                      color: platform === 'tiktok' ? '#000' : '#fff',
+                    }}
+                  >
+                    {platform.charAt(0).toUpperCase()}
+                  </span>
+                  {PLATFORM_NAMES[platform]}
+                  <span className="text-[10px] text-armadillo-muted/50 ml-auto">{platformAccts.length}/{MAX_ACCOUNTS}</span>
+                </label>
+
+                {platformAccts.length > 0 && (
+                  <div className="space-y-1.5 mb-2">
+                    {platformAccts.map((username) => (
+                      <div
+                        key={username}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm border transition-colors ${
+                          isActive(username)
+                            ? 'bg-burnt/10 border-burnt/30 text-armadillo-text'
+                            : 'bg-armadillo-bg border-armadillo-border text-armadillo-muted'
+                        }`}
+                      >
+                        <button
+                          onClick={() => switchAccount(username)}
+                          className="flex items-center gap-2 flex-1 text-left"
+                        >
+                          {isActive(username) ? (
+                            <Check size={14} className="text-burnt shrink-0" />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border border-armadillo-border shrink-0" />
+                          )}
+                          <span className="truncate">@{username}</span>
+                          {isActive(username) && (
+                            <span className="text-[9px] bg-burnt/20 text-burnt px-1.5 py-0.5 rounded-full font-medium ml-auto shrink-0">Active</span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => removeAccount(username)}
+                          className="text-armadillo-muted hover:text-danger transition-colors p-1 shrink-0"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {canAdd && (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newAccountInput[platform] || ''}
+                      onChange={(e) => setNewAccountInput({ ...newAccountInput, [platform]: e.target.value })}
+                      onKeyDown={(e) => e.key === 'Enter' && addAccount()}
+                      placeholder={PLATFORM_PLACEHOLDERS[platform]}
+                      className="flex-1 bg-armadillo-bg border border-armadillo-border rounded-lg px-4 py-2 text-sm text-armadillo-text placeholder-armadillo-muted/50 focus:outline-none focus:border-burnt transition-colors"
+                    />
+                    <button
+                      onClick={addAccount}
+                      className="bg-burnt hover:bg-burnt-light text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
