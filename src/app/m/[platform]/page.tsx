@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getMobileProfile } from '@/lib/mobile-store';
+import { getMobileProfile, getActiveUsername } from '@/lib/mobile-store';
 import { PLATFORM_NAMES, PLATFORM_COLORS } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
 import OfflineBanner from '@/components/mobile/OfflineBanner';
@@ -102,7 +102,7 @@ export default function MobilePlatformPage() {
 
   const handleScrape = useCallback(async () => {
     const profile = getMobileProfile();
-    const username = profile.platformUsernames[platform];
+    const username = getActiveUsername(profile, platform);
     if (!username) {
       setScrapeError(`No ${platformName} username configured. Go to Settings.`);
       return;

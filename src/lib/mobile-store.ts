@@ -8,4 +8,6 @@ export {
   getUserProfile,
   saveUserProfile,
   clearUserProfile,
+  getActiveUsername,
+  getPlatformAccounts,
 } from './store';

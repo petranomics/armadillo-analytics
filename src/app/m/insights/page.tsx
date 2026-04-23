@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
+import { getMobileProfile, getActiveUsername, saveMobileProfile as saveUserProfile, type MobileUserProfile } from '@/lib/mobile-store';
 import { getMediaKit } from '@/lib/media-kit';
+import { getPresetTopics, getAllTopics, createCustomTopic, type TrendTopic } from '@/lib/trend-topics';
 import { PLATFORM_NAMES, PLATFORM_COLORS } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
-import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, ArrowUpRight, Sparkles, Lock, ChevronDown, ChevronUp, Loader2, RefreshCw, Hash, ExternalLink, ArrowDownUp, Calendar, Image as ImageIcon } from 'lucide-react';
+import { TrendingUp, TrendingDown, Eye, Heart, MessageCircle, Share2, ArrowUpRight, Sparkles, Lock, ChevronDown, ChevronUp, Loader2, RefreshCw, Hash, ExternalLink, ArrowDownUp, Calendar, Image as ImageIcon, Plus, X } from 'lucide-react';
 import type { Platform, Post, TrendData, HashtagStats, HashtagPost, RedditTrend, TikTokTrend } from '@/lib/types';
 import OfflineBanner from '@/components/mobile/OfflineBanner';
 
@@ -143,54 +144,50 @@ export default function InsightsPage() {
     }
   }, []);
 
-  // Lazy-load trends when the tab is first activated — use personalized keywords
+  // Niche-based trend topics
+  const [activeTopics, setActiveTopics] = useState<TrendTopic[]>([]);
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
+
+  // Load preset topics based on user profile
   useEffect(() => {
-    if (activeTab === 'trends' && !trendsFetched && profile) {
+    if (!profile) return;
+    const presets = getPresetTopics(profile.userType, profile.quickFormAnswers);
+    // Merge with any custom topics saved in profile
+    const custom = (profile.customTrendTopics || []).map(t => createCustomTopic(t.label, t.hashtags));
+    setActiveTopics([...presets, ...custom]);
+  }, [profile]);
+
+  // Lazy-load trends when the tab is first activated — uses niche-based topics
+  useEffect(() => {
+    if (activeTab === 'trends' && !trendsFetched && profile && activeTopics.length > 0) {
       setTrendsFetched(true);
+
+      // Collect all hashtags and subreddits from active topics
+      const allHashtags = activeTopics.flatMap(t => t.hashtags).slice(0, 10);
+      const allSubreddits = activeTopics.flatMap(t => t.subreddits).filter(Boolean);
+      const allKeywords = activeTopics.flatMap(t => t.keywords).slice(0, 5);
 
       const hasIg = profile.selectedPlatforms.includes('instagram');
       const hasTiktok = profile.selectedPlatforms.includes('tiktok');
 
-      // Pull personalized topics from media kit and profile
-      const mediaKit = getMediaKit();
-      const contentTopics = mediaKit.contentTopics.length > 0
-        ? mediaKit.contentTopics.map(t => t.replace(/^#/, ''))
-        : [];
-      const niche = profile.tiktokNiche || '';
-
-      // Build keyword list: contentTopics first, then niche as fallback, then generic defaults
-      const hashtagKeywords = contentTopics.length > 0
-        ? contentTopics.slice(0, 5)
-        : niche
-          ? [niche]
-          : ['fitness', 'food', 'travel'];
-
-      // Use user's tracked hashtags for post search, fall back to first few keywords
-      const trackedHashtags = profile.trackedHashtags.length > 0
-        ? profile.trackedHashtags.map(h => h.replace(/^#/, ''))
-        : hashtagKeywords.slice(0, 2);
-
-      // Use user's tracked subreddits, fall back to r/popular
-      const subreddits = profile.trackedSubreddits.length > 0
-        ? profile.trackedSubreddits
-        : ['https://old.reddit.com/r/popular/'];
-
-      // TikTok category from niche or content topics
-      const tiktokCategory = niche || (contentTopics.length > 0 ? contentTopics[0] : 'General');
-
-      // Fire relevant fetches in parallel — data only pulled when needed
-      if (hasIg) {
-        fetchTrend('instagramHashtags', { keywords: hashtagKeywords });
-        fetchTrend('instagramHashtagPosts', { hashtags: trackedHashtags, limit: 20 });
+      if (hasIg && allHashtags.length > 0) {
+        fetchTrend('instagramHashtags', { keywords: allHashtags.slice(0, 5) });
+        fetchTrend('instagramHashtagPosts', { hashtags: allHashtags.slice(0, 3), limit: 15 });
       }
 
-      fetchTrend('redditTrends', { subreddits, maxPosts: 15 });
+      if (allSubreddits.length > 0) {
+        fetchTrend('redditTrends', {
+          subreddits: allSubreddits.slice(0, 5).map(s => s.startsWith('http') ? s : `https://www.reddit.com/r/${s}/`),
+          maxPosts: 15,
+        });
+      }
 
       if (hasTiktok) {
-        fetchTrend('tiktokTrends', { category: tiktokCategory, maxProducts: 8 });
+        const category = allKeywords[0] || 'General';
+        fetchTrend('tiktokTrends', { category, maxProducts: 8 });
       }
     }
-  }, [activeTab, trendsFetched, profile, fetchTrend]);
+  }, [activeTab, trendsFetched, profile, fetchTrend, activeTopics]);
 
   // Auto-scrape if no posts in localStorage — so insights works without visiting dashboard first
   const [autoScraping, setAutoScraping] = useState(false);
@@ -200,9 +197,9 @@ export default function InsightsPage() {
     if (!profile || posts.length > 0 || autoScrapeDone.current) return;
     autoScrapeDone.current = true;
 
-    const platform = profile.selectedPlatforms.find(p => profile.platformUsernames[p]) as Platform | undefined;
+    const platform = profile.selectedPlatforms.find(p => getActiveUsername(profile, p)) as Platform | undefined;
     if (!platform) return;
-    const username = profile.platformUsernames[platform]!;
+    const username = getActiveUsername(profile, platform)!;
 
     setAutoScraping(true);
     fetch('/api/scrape', {
@@ -302,7 +299,7 @@ export default function InsightsPage() {
         body: JSON.stringify({
           posts: flatPosts,
           platform: profile.selectedPlatforms[0],
-          username: profile.platformUsernames?.[profile.selectedPlatforms[0]] || 'unknown',
+          username: getActiveUsername(profile, profile.selectedPlatforms[0]) || 'unknown',
           userType: profile.userType,
           niche: profile.tiktokNiche || undefined,
           trends: {
@@ -661,46 +658,135 @@ export default function InsightsPage() {
         );
       })()}
 
-      {/* Trends Tab — live data, lazy-loaded */}
+      {/* Trends Tab — niche-based topics */}
       {activeTab === 'trends' && (
         <div className="px-5 space-y-5">
-          {/* Tier gate — trends require at least Lite */}
-          {!isLiteOrAbove ? (
-            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-6 text-center">
-              <Lock size={24} className="text-armadillo-muted mx-auto mb-3" />
-              <div className="text-sm font-medium text-armadillo-text mb-1">Live Trends</div>
-              <p className="text-[11px] text-armadillo-muted mb-4 max-w-xs mx-auto">
-                Unlock hashtag analytics, Reddit trends, and TikTok product insights with Lite or Pro.
-              </p>
-              <button className="bg-burnt hover:bg-burnt-light text-white px-5 py-2.5 rounded-xl text-xs font-semibold tracking-wider uppercase transition-colors">
-                Upgrade to Lite — $4.99/mo
+          {/* Active topics as scrollable pills */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-semibold text-armadillo-muted tracking-widest uppercase">Your Topics</span>
+              <button
+                onClick={() => setShowTopicPicker(!showTopicPicker)}
+                className="text-[11px] text-burnt font-medium flex items-center gap-1 active:scale-95"
+              >
+                <Plus size={12} /> Add
               </button>
             </div>
-          ) : (
-            <>
-              {/* Loading indicator */}
-              {anyTrendLoading && (
-                <div className="flex items-center justify-center gap-2 py-2">
-                  <Loader2 size={14} className="text-burnt animate-spin" />
-                  <span className="text-[11px] text-armadillo-muted">Fetching live trend data...</span>
-                </div>
-              )}
-
-              {/* Refresh */}
-              {trendsFetched && !anyTrendLoading && (
-                <button
-                  onClick={() => {
-                    setTrendsFetched(false);
-                    setHashtagStats(null);
-                    setHashtagPosts(null);
-                    setRedditTrends(null);
-                    setTiktokTrends(null);
-                  }}
-                  className="flex items-center gap-1.5 text-[11px] text-burnt font-medium"
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {activeTopics.map((topic) => (
+                <span
+                  key={topic.id}
+                  className="inline-flex items-center gap-1.5 bg-burnt/10 border border-burnt/20 text-burnt text-xs font-medium px-3 py-1.5 rounded-full whitespace-nowrap shrink-0"
                 >
-                  <RefreshCw size={11} /> Refresh trends
-                </button>
+                  {topic.label}
+                  <button
+                    onClick={() => {
+                      setActiveTopics(activeTopics.filter(t => t.id !== topic.id));
+                      // Also remove from profile if custom
+                      if (profile && topic.id.startsWith('custom-')) {
+                        const updated = { ...profile, customTrendTopics: (profile.customTrendTopics || []).filter(t => t.id !== topic.id) };
+                        saveUserProfile(updated);
+                      }
+                    }}
+                    className="text-burnt/60 hover:text-burnt"
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              {activeTopics.length === 0 && (
+                <span className="text-xs text-armadillo-muted">No topics selected. Tap &quot;Add&quot; to get started.</span>
               )}
+            </div>
+          </div>
+
+          {/* Topic picker dropdown */}
+          {showTopicPicker && (
+            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium text-armadillo-text">Browse Topics</span>
+                <button onClick={() => setShowTopicPicker(false)} className="text-armadillo-muted">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {getAllTopics()
+                  .filter(t => !activeTopics.some(a => a.id === t.id))
+                  .map((topic) => (
+                    <button
+                      key={topic.id}
+                      onClick={() => {
+                        setActiveTopics([...activeTopics, topic]);
+                        setTrendsFetched(false); // Re-fetch with new topic
+                      }}
+                      className="text-xs bg-armadillo-bg border border-armadillo-border rounded-full px-3 py-1.5 text-armadillo-muted hover:text-armadillo-text hover:border-burnt/30 transition-colors active:scale-95"
+                    >
+                      + {topic.label}
+                    </button>
+                  ))}
+              </div>
+
+              {/* Custom topic input */}
+              <div className="border-t border-armadillo-border pt-3">
+                <span className="text-[10px] text-armadillo-muted uppercase tracking-wider font-medium">Custom Topic</span>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. Sustainable Fashion"
+                    id="custom-topic-input"
+                    className="flex-1 bg-armadillo-bg border border-armadillo-border rounded-xl px-3 py-2 text-sm text-armadillo-text placeholder:text-armadillo-muted/50"
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById('custom-topic-input') as HTMLInputElement;
+                      const val = input?.value?.trim();
+                      if (!val) return;
+                      const topic = createCustomTopic(val, [val.toLowerCase().replace(/\s+/g, '')]);
+                      setActiveTopics([...activeTopics, topic]);
+                      // Save to profile
+                      if (profile) {
+                        const updated = {
+                          ...profile,
+                          customTrendTopics: [...(profile.customTrendTopics || []), { id: topic.id, label: topic.label, hashtags: topic.hashtags }],
+                        };
+                        saveUserProfile(updated);
+                        setProfile(updated);
+                      }
+                      input.value = '';
+                      setTrendsFetched(false);
+                    }}
+                    className="bg-burnt text-white px-3 py-2 rounded-xl text-sm font-medium active:scale-95 shrink-0"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Loading indicator */}
+          {anyTrendLoading && (
+            <div className="flex items-center justify-center gap-2 py-2">
+              <Loader2 size={14} className="text-burnt animate-spin" />
+              <span className="text-[11px] text-armadillo-muted">Fetching trend data for your topics...</span>
+            </div>
+          )}
+
+          {/* Refresh */}
+          {trendsFetched && !anyTrendLoading && (
+            <button
+              onClick={() => {
+                setTrendsFetched(false);
+                setHashtagStats(null);
+                setHashtagPosts(null);
+                setRedditTrends(null);
+                setTiktokTrends(null);
+              }}
+              className="flex items-center gap-1.5 text-[11px] text-burnt font-medium"
+            >
+              <RefreshCw size={11} /> Refresh trends
+            </button>
+          )}
 
               {/* Instagram Hashtag Stats */}
               {hashtagStats && hashtagStats.length > 0 && (
@@ -842,17 +928,15 @@ export default function InsightsPage() {
                 </div>
               )}
 
-              {/* No trends data empty state */}
-              {!anyTrendLoading && !hashtagStats && !hashtagPosts && !redditTrends && !tiktokTrends && (
-                <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-6 text-center">
-                  <TrendingUp size={20} className="text-armadillo-muted/40 mx-auto mb-2" />
-                  <p className="text-xs font-medium text-armadillo-text mb-1">No trend data yet</p>
-                  <p className="text-[11px] text-armadillo-muted">
-                    Trend data will appear here once live trends can be fetched.
-                  </p>
-                </div>
-              )}
-            </>
+          {/* No trends data empty state */}
+          {!anyTrendLoading && !hashtagStats && !hashtagPosts && !redditTrends && !tiktokTrends && activeTopics.length > 0 && (
+            <div className="bg-armadillo-card border border-armadillo-border rounded-2xl p-6 text-center">
+              <TrendingUp size={20} className="text-armadillo-muted/40 mx-auto mb-2" />
+              <p className="text-xs font-medium text-armadillo-text mb-1">No trend data yet</p>
+              <p className="text-[11px] text-armadillo-muted">
+                Trend data will appear here once fetched for your selected topics.
+              </p>
+            </div>
           )}
         </div>
       )}

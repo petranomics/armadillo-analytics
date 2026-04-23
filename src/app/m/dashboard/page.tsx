@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getMobileProfile, type MobileUserProfile } from '@/lib/mobile-store';
+import { getMobileProfile, getActiveUsername, type MobileUserProfile } from '@/lib/mobile-store';
 import { USER_TYPES, ALL_METRICS, type MetricDefinition, type MetricCategory, CATEGORY_LABELS } from '@/lib/user-types';
 import { PLATFORM_NAMES } from '@/lib/constants';
 import BottomNav from '@/components/mobile/BottomNav';
@@ -188,12 +188,12 @@ export default function MobileDashboard() {
   const handleRefresh = useCallback(async () => {
     if (!profile || scraping) return;
     // Use the first selected platform that has a username
-    const platform = profile.selectedPlatforms.find(p => profile.platformUsernames[p]) as Platform | undefined;
+    const platform = profile.selectedPlatforms.find(p => getActiveUsername(profile, p)) as Platform | undefined;
     if (!platform) {
       setScrapeError('No platform username configured. Go to Settings to add one.');
       return;
     }
-    const username = profile.platformUsernames[platform]!;
+    const username = getActiveUsername(profile, platform)!;
 
     setScraping(true);
     setScrapeError(null);
@@ -780,7 +780,7 @@ export default function MobileDashboard() {
               <div>
                 <div className="text-xs font-medium text-armadillo-text">{PLATFORM_NAMES[platform]}</div>
                 <div className="text-[9px] text-armadillo-muted">
-                  {profile.platformUsernames[platform] ? `@${profile.platformUsernames[platform]}` : 'Not connected'}
+                  {getActiveUsername(profile, platform) ? `@${getActiveUsername(profile, platform)}` : 'Not connected'}
                 </div>
               </div>
               <ChevronRight size={14} className="text-armadillo-muted ml-1" />

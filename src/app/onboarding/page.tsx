@@ -25,6 +25,16 @@ export default function OnboardingPage() {
       ? state.selectedMetrics
       : selectedUserConfig?.defaultMetrics || [];
 
+    const platformAccounts: Partial<Record<Platform, string[]>> = {};
+    const activeAccount: Partial<Record<Platform, string>> = {};
+    for (const p of state.selectedPlatforms) {
+      const username = state.platformUsernames[p];
+      if (username) {
+        platformAccounts[p] = [username];
+        activeAccount[p] = username;
+      }
+    }
+
     saveUserProfile({
       userType: state.userType,
       quickFormAnswers: state.quickFormAnswers,
@@ -33,11 +43,15 @@ export default function OnboardingPage() {
       plan: state.plan,
       onboardingComplete: true,
       platformUsernames: state.platformUsernames,
+      platformAccounts,
+      activeAccount,
       competitorAccounts: state.competitorAccounts,
       apifyApiKey: '',
       trackedHashtags: [],
       trackedSubreddits: [],
       tiktokNiche: '',
+      selectedTrendTopics: [],
+      customTrendTopics: [],
     });
 
     router.push('/');
