@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { runActorSync, getActorInput, getTrendActorInput } from '../apify';
+import { logUsage } from '../usage-logger.mjs';
 import type { Platform, Post, PlatformProfile } from '../types';
 import type { InsightSection, InsightType, DbPlatformConnection } from './types';
 import {
@@ -259,6 +260,7 @@ export async function generateInsights(
   const vpsSecret = process.env.VPS_API_SECRET;
 
   if (vpsUrl && vpsSecret) {
+    const vpsStartedAt = Date.now();
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 60000);
@@ -281,6 +283,16 @@ export async function generateInsights(
           const json = vpsText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
           const parsed = JSON.parse(json);
           console.log(`[enrichment] VPS call: model=mistral, source=vps, tokens=0 (local)`);
+          await logUsage({
+            app: 'armadillo',
+            endpoint: 'enrichment.generateInsights',
+            tenant: profile.username,
+            model: 'mistral',
+            provider: 'mistral',
+            response: null,
+            latencyMs: Date.now() - vpsStartedAt,
+            metadata: { platform: profile.platform, post_count: posts.length, source: 'vps-mistral' },
+          });
           return { sections: parsed.sections as InsightSection[], summary: parsed.summary ?? null, tokensUsed: 0 };
         }
       }
@@ -294,6 +306,7 @@ export async function generateInsights(
   if (!apiKey) throw new Error('No AI backend available (VPS down, ANTHROPIC_API_KEY not set)');
 
   const client = new Anthropic({ apiKey });
+  const claudeStartedAt = Date.now();
   const message = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
@@ -312,6 +325,17 @@ export async function generateInsights(
   const tokensUsed = inputTokens + outputTokens;
 
   console.log(`[enrichment] Anthropic call: model=${MODEL}, input=${inputTokens}, output=${outputTokens}, total=${tokensUsed}`);
+
+  await logUsage({
+    app: 'armadillo',
+    endpoint: 'enrichment.generateInsights',
+    tenant: profile.username,
+    model: MODEL,
+    provider: 'anthropic',
+    response: message,
+    latencyMs: Date.now() - claudeStartedAt,
+    metadata: { platform: profile.platform, post_count: posts.length, source: 'claude-fallback' },
+  });
 
   return {
     sections: parsed.sections as InsightSection[],

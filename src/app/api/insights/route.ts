@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logUsage } from '@/lib/usage-logger.mjs';
 
 interface PostData {
   caption: string;
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
     const vpsKey = process.env.VPS_AGENT_KEY;
 
     if (vpsUrl && vpsKey) {
+      const vpsStartedAt = Date.now();
       try {
         const vpsRes = await fetch(vpsUrl, {
           method: 'POST',
@@ -112,6 +114,16 @@ export async function POST(request: NextRequest) {
         if (vpsRes.ok) {
           const vpsData = await vpsRes.json();
           console.log('[insights] Used VPS Mistral agent');
+          await logUsage({
+            app: 'armadillo',
+            endpoint: '/api/insights',
+            tenant: username,
+            model: 'mistral',
+            provider: 'mistral',
+            response: null,
+            latencyMs: Date.now() - vpsStartedAt,
+            metadata: { platform, post_count: posts.length, source: 'vps-mistral' },
+          });
           return NextResponse.json({
             generatedAt: new Date().toLocaleString('en-US', {
               month: 'short', day: 'numeric', year: 'numeric',
@@ -194,6 +206,8 @@ ${trends.tiktokTrends.map(t => `- ${t.productName} (${t.category}${t.trendScore 
 
 Now generate the analytics report. Respond ONLY with the JSON object, no other text.`;
 
+    const claudeModel = process.env.CLAUDE_MODEL ?? 'claude-haiku-4-5-20251001';
+    const claudeStartedAt = Date.now();
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -202,7 +216,7 @@ Now generate the analytics report. Respond ONLY with the JSON object, no other t
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: process.env.CLAUDE_MODEL ?? 'claude-haiku-4-5-20251001',
+        model: claudeModel,
         max_tokens: Number(process.env.CLAUDE_MAX_TOKENS ?? '2048'),
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
@@ -227,6 +241,17 @@ Now generate the analytics report. Respond ONLY with the JSON object, no other t
     // Parse the JSON response from Claude
     const jsonText = textBlock.text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     const analysis = JSON.parse(jsonText);
+
+    await logUsage({
+      app: 'armadillo',
+      endpoint: '/api/insights',
+      tenant: username,
+      model: claudeModel,
+      provider: 'anthropic',
+      response: result,
+      latencyMs: Date.now() - claudeStartedAt,
+      metadata: { platform, post_count: posts.length, source: 'claude-fallback' },
+    });
 
     return NextResponse.json({
       generatedAt: new Date().toLocaleString('en-US', {
